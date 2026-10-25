@@ -1,0 +1,2272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tally — Stock, ETF &amp; Crypto Performance &amp; Consensus Targets</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            canvas: '#F8F7F4',
+            surface: '#FFFFFF',
+            ink: {
+              900: '#17191C',
+              700: '#3D424A',
+              500: '#6E7480',
+              300: '#A6ACB8',
+            },
+            line: '#E4E2DD',
+            lineDark: '#D4D0C7',
+            gain: '#1E7E34',
+            loss: '#C0392B'
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #F8F7F4;
+      color: #17191C;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    /* Dual Range Slider track & thumbs */
+    .slider-track-wrap {
+      position: relative;
+      height: 32px;
+      display: flex;
+      align-items: center;
+    }
+    .slider-bg-rail {
+      position: absolute;
+      width: 100%;
+      height: 6px;
+      background: #E5E3DE;
+      border-radius: 999px;
+    }
+    .slider-active-rail {
+      position: absolute;
+      height: 6px;
+      background: #17191C;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+    input[type="range"].tally-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      position: absolute;
+      width: 100%;
+      background: transparent;
+      pointer-events: none;
+      margin: 0;
+      height: 32px;
+    }
+    input[type="range"].tally-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 2.5px solid #17191C;
+      cursor: grab;
+      pointer-events: auto;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+      transition: transform 0.1s ease;
+    }
+    input[type="range"].tally-slider::-webkit-slider-thumb:active {
+      cursor: grabbing;
+      transform: scale(1.18);
+    }
+    input[type="range"].tally-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 2.5px solid #17191C;
+      cursor: grab;
+      pointer-events: auto;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+    }
+    
+    /* Scrollbar styling for search results */
+    #searchScrollArea::-webkit-scrollbar {
+      width: 5px;
+    }
+    #searchScrollArea::-webkit-scrollbar-thumb {
+      background: #D4D0C7;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex flex-col justify-between selection:bg-neutral-200">
+
+  <!-- TOP HEADER -->
+  <header class="w-full max-w-5xl mx-auto px-5 pt-8 pb-4">
+    <div class="flex items-center justify-between pb-5 border-b border-line">
+      <div class="flex items-baseline space-x-3">
+        <h1 class="text-2xl font-bold tracking-tight text-ink-900">Tally</h1>
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-line text-ink-700">Equities, ETFs &amp; Crypto</span>
+      </div>
+
+      <div class="text-xs text-ink-500 font-medium hidden sm:flex items-center gap-2">
+        <span>Click search or press <kbd class="px-1.5 py-0.5 rounded border border-line bg-surface text-ink-700 font-sans font-semibold">/</kbd> to browse universe</span>
+      </div>
+    </div>
+
+    <!-- PRESET BASKET SHORTCUTS -->
+    <div class="mt-4 flex flex-wrap items-center gap-2">
+      <span class="text-[11px] font-bold text-ink-500 uppercase tracking-wider mr-1">Quick Baskets:</span>
+      <button onclick="loadPresetBasket('popular_mix')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-surface hover:bg-canvas border border-line text-ink-700 hover:border-ink-900 transition flex items-center gap-1.5 shadow-sm">
+        <span>⭐ Core Mix (NVDA, AAPL, DFND, BTC)</span>
+      </button>
+      <button onclick="loadPresetBasket('crypto_major')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-surface hover:bg-canvas border border-line text-ink-700 hover:border-ink-900 transition flex items-center gap-1.5 shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+        <span>⚡ Major Crypto (BTC, ETH, SOL)</span>
+      </button>
+      <button onclick="loadPresetBasket('crypto_tech')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-surface hover:bg-canvas border border-line text-ink-700 hover:border-ink-900 transition flex items-center gap-1.5 shadow-sm">
+        <span>🚀 Tech &amp; Crypto (NVDA, BTC, PLTR, ETH)</span>
+      </button>
+      <button onclick="loadPresetBasket('us_tech')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-surface hover:bg-canvas border border-line text-ink-700 hover:border-ink-900 transition flex items-center gap-1.5 shadow-sm">
+        <span>💻 US Tech &amp; AI (NVDA, MSFT, PLTR, AMD)</span>
+      </button>
+      <button onclick="loadPresetBasket('asx_etfs')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-surface hover:bg-canvas border border-line text-ink-700 hover:border-ink-900 transition flex items-center gap-1.5 shadow-sm">
+        <span>🇦🇺 ASX Thematics (DFND, SEMI, VEU, NDQ)</span>
+      </button>
+      <button onclick="loadPresetBasket('asx_stocks')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-surface hover:bg-canvas border border-line text-ink-700 hover:border-ink-900 transition flex items-center gap-1.5 shadow-sm">
+        <span>🦘 ASX Blue-Chips (CSL, BHP, CBA, WES)</span>
+      </button>
+      <button onclick="loadPresetBasket('broad_etfs')" class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-surface hover:bg-canvas border border-line text-ink-700 hover:border-ink-900 transition flex items-center gap-1.5 shadow-sm">
+        <span>🌐 Global Index ETFs (IVV, SPY, QQQ, VAS)</span>
+      </button>
+    </div>
+
+    <!-- SEARCH & ACTIVE STOCKS BAR -->
+    <div class="mt-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      
+      <!-- Interactive Search Container with Dropdown & Filter Tabs -->
+      <div class="relative w-full sm:w-[440px]" id="searchContainer">
+        <div class="relative">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-ink-500">
+            <i data-lucide="search" class="w-4 h-4"></i>
+          </div>
+          <input 
+            type="text" 
+            id="tickerSearch" 
+            placeholder="Search BTC, ETH, NVDA, SOL, DFND, SEMI, CSL..." 
+            autocomplete="off"
+            class="w-full bg-surface border border-line rounded-xl pl-9 pr-9 py-2.5 text-sm text-ink-900 placeholder:text-ink-500 focus:outline-none focus:border-ink-900 transition shadow-sm font-medium"
+          />
+          <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute inset-y-0 right-0 pr-3 flex items-center text-ink-500 hover:text-ink-900">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Autocomplete Dropdown with Category Tabs -->
+        <div id="searchDropdown" class="hidden absolute top-full left-0 right-0 mt-2 bg-surface border border-line rounded-2xl shadow-xl z-50 overflow-hidden">
+          
+          <!-- Filter Tabs inside Dropdown -->
+          <div class="flex items-center px-3 pt-2.5 pb-2 border-b border-line gap-1 bg-canvas/60 text-xs overflow-x-auto">
+            <button onclick="setSearchFilter('all', this)" class="search-filter-tab px-2.5 py-1 rounded-md font-semibold bg-ink-900 text-white transition whitespace-nowrap">All</button>
+            <button onclick="setSearchFilter('stock', this)" class="search-filter-tab px-2.5 py-1 rounded-md font-medium text-ink-500 hover:text-ink-900 transition whitespace-nowrap">📈 Stocks</button>
+            <button onclick="setSearchFilter('etf', this)" class="search-filter-tab px-2.5 py-1 rounded-md font-medium text-ink-500 hover:text-ink-900 transition whitespace-nowrap">🧺 ETFs</button>
+            <button onclick="setSearchFilter('crypto', this)" class="search-filter-tab px-2.5 py-1 rounded-md font-medium text-ink-500 hover:text-ink-900 transition whitespace-nowrap">⚡ Crypto</button>
+            <button onclick="setSearchFilter('asx', this)" class="search-filter-tab px-2.5 py-1 rounded-md font-medium text-ink-500 hover:text-ink-900 transition whitespace-nowrap">🇦🇺 ASX</button>
+            <button onclick="setSearchFilter('us', this)" class="search-filter-tab px-2.5 py-1 rounded-md font-medium text-ink-500 hover:text-ink-900 transition whitespace-nowrap">🇺🇸 US</button>
+          </div>
+
+          <!-- Scrollable Search Results List -->
+          <div id="searchScrollArea" class="max-h-80 overflow-y-auto divide-y divide-line/40 py-1">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Selected Stock Tags -->
+      <div id="activeStockTags" class="flex flex-wrap items-center gap-2 pt-1 sm:pt-0">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD -->
+  <main class="w-full max-w-5xl mx-auto px-5 py-3 flex-1 space-y-6">
+
+    <!-- HERO CHART CONTAINER -->
+    <div class="bg-surface border border-line rounded-2xl p-5 sm:p-7 shadow-sm">
+      
+      <!-- Top Chart Controls -->
+      <div class="flex flex-wrap items-center justify-between pb-5 border-b border-line/60 gap-3">
+        
+        <!-- Scale Mode Toggle (% vs $) & Predictions Switch -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <div class="inline-flex rounded-lg bg-canvas p-1 border border-line">
+            <button id="togglePercent" onclick="setScaleMode('percent')" class="px-3 py-1 text-xs font-semibold rounded-md bg-surface text-ink-900 shadow-sm transition">
+              % Return (Normalized)
+            </button>
+            <button id="togglePrice" onclick="setScaleMode('price')" class="px-3 py-1 text-xs font-medium rounded-md text-ink-500 hover:text-ink-900 transition">
+              $ Share / Coin Price
+            </button>
+          </div>
+
+          <!-- 12-Month Predictions Toggle -->
+          <button 
+            id="forecastToggleBtn" 
+            onclick="toggleForecast()" 
+            class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-semibold border border-line bg-canvas text-ink-700 hover:border-ink-900 transition"
+          >
+            <span id="forecastIndicatorDot" class="w-2 h-2 rounded-full bg-lineDark"></span>
+            <span>Show 12M Price Predictions</span>
+          </button>
+        </div>
+
+        <!-- Quick Horizon Buttons -->
+        <div class="flex items-center space-x-1">
+          <button onclick="setPresetHorizon(21, this)" class="horizon-chip px-2.5 py-1 text-xs font-medium rounded-md text-ink-500 hover:text-ink-900 transition">1M</button>
+          <button onclick="setPresetHorizon(126, this)" class="horizon-chip px-2.5 py-1 text-xs font-medium rounded-md text-ink-500 hover:text-ink-900 transition">6M</button>
+          <button onclick="setPresetHorizon(252, this)" class="horizon-chip px-2.5 py-1 text-xs font-medium rounded-md text-ink-500 hover:text-ink-900 transition">1Y</button>
+          <button onclick="setPresetHorizon(756, this)" class="horizon-chip px-2.5 py-1 text-xs font-medium rounded-md text-ink-500 hover:text-ink-900 transition">3Y</button>
+          <button onclick="setPresetHorizon(1260, this)" class="horizon-chip px-2.5 py-1 text-xs font-medium rounded-md text-ink-500 hover:text-ink-900 transition">5Y</button>
+          <button onclick="setPresetHorizon('ALL', this)" class="horizon-chip active px-2.5 py-1 text-xs font-semibold rounded-md bg-ink-900 text-white transition">All (Pre-COVID 2019)</button>
+        </div>
+      </div>
+
+      <!-- Forecast Active Banner -->
+      <div id="forecastBanner" class="hidden mt-3 px-3.5 py-2.5 rounded-xl bg-canvas border border-line flex items-center justify-between text-xs">
+        <div class="flex items-center space-x-2 text-ink-700">
+          <i data-lucide="trending-up" class="w-4 h-4 text-gain"></i>
+          <span><strong>12-Month Consensus Projections Active:</strong> Dashed lines project analyst median &amp; institutional crypto corridors forward into late 2027.</span>
+        </div>
+        <span class="text-[11px] text-ink-500">Wall St / Institutional median target</span>
+      </div>
+
+      <!-- Currency Advisory Banner -->
+      <div id="currencyNotice" class="hidden mt-2 px-3.5 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+        <i data-lucide="info" class="w-4 h-4 text-amber-700 shrink-0"></i>
+        <span>Active basket has mixed asset tiers (e.g., BTC ~$68k vs stocks ~$200 vs AUD A$). For an accurate apples-to-apples comparison, toggle <strong>% Return (Normalized)</strong>.</span>
+      </div>
+
+      <!-- Chart Canvas -->
+      <div class="relative w-full h-[390px] sm:h-[440px] mt-3">
+        <canvas id="stockChart"></canvas>
+      </div>
+
+      <!-- DUAL-THUMB TIMELINE SLIDER -->
+      <div class="mt-6 pt-5 border-t border-line/60 space-y-2">
+        <div class="flex items-center justify-between text-xs font-medium text-ink-500">
+          <span id="labelStartDate" class="font-mono text-ink-900 font-semibold">2019-06-03</span>
+          <span class="text-ink-700 font-medium">
+            <span id="labelSessionCount" class="font-semibold text-ink-900">1,930</span> trading sessions
+          </span>
+          <span id="labelEndDate" class="font-mono text-ink-900 font-semibold">2026-10-23</span>
+        </div>
+
+        <div class="slider-track-wrap">
+          <div class="slider-bg-rail"></div>
+          <div id="sliderFill" class="slider-active-rail"></div>
+          <input type="range" id="sliderLeft" class="tally-slider" min="0" max="1929" value="0" step="1">
+          <input type="range" id="sliderRight" class="tally-slider" min="0" max="1929" value="1929" step="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- WALL STREET & INSTITUTIONAL CRYPTO PREDICTION CARDS -->
+    <div class="space-y-3 pt-2">
+      <div class="flex items-baseline justify-between px-1">
+        <div>
+          <h2 class="text-base font-bold text-ink-900">Wall Street &amp; Institutional Crypto 12-Month Targets</h2>
+          <p class="text-xs text-ink-500">Consensus ratings, Smart Score™ (1-10) or Institutional Conviction, target prices &amp; corridor spread</p>
+        </div>
+        <span class="text-xs text-ink-500 font-medium">Split &amp; Cycle adjusted</span>
+      </div>
+
+      <!-- Forecast Grid -->
+      <div id="analystCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="w-full max-w-5xl mx-auto px-5 py-8 mt-10 border-t border-line text-xs text-ink-500 flex flex-col sm:flex-row items-center justify-between gap-3">
+    <span>Tally — Real business-day split-adjusted quotes &amp; institutional consensus targets.</span>
+    <span>Covers major US Equities, Australian Blue-Chips, Thematic ETFs &amp; Major Cryptocurrencies (Pre-COVID 2019–2026).</span>
+  </footer>
+
+  <!-- NOTIFICATION TOAST -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-ink-900 text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-xl opacity-0 translate-y-3 pointer-events-none transition-all duration-200 z-50 flex items-center gap-2">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toastMsg">Notification</span>
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // 1. GENERATE DAILY BUSINESS DATES (JUNE 2019 - OCT 2026)
+    // -------------------------------------------------------------
+    function generateTradingDates(startDateStr, endDateStr) {
+      const dates = [];
+      let cur = new Date(startDateStr);
+      const end = new Date(endDateStr);
+
+      while (cur <= end) {
+        const day = cur.getDay();
+        if (day !== 0 && day !== 6) { // Exclude weekends for synchronized market comparison
+          const y = cur.getFullYear();
+          const m = String(cur.getMonth() + 1).padStart(2, '0');
+          const d = String(cur.getDate()).padStart(2, '0');
+          dates.push(`${y}-${m}-${d}`);
+        }
+        cur.setDate(cur.getDate() + 1);
+      }
+      return dates;
+    }
+
+    const HISTORICAL_DATES = generateTradingDates("2019-06-03", "2026-10-23");
+    const HISTORICAL_TOTAL = HISTORICAL_DATES.length; // ~1,930 sessions
+    const FORECAST_DATES = generateTradingDates("2026-10-26", "2027-10-25"); // ~252 trading days forward
+
+    // Reproducible random number generator for realistic microstructure
+    function createPRNG(seed) {
+      let s = seed % 2147483647;
+      if (s <= 0) s += 2147483646;
+      return function() {
+        s = (s * 16807) % 2147483647;
+        return (s - 1) / 2147483646;
+      };
+    }
+
+    // -------------------------------------------------------------
+    // 2. UNIVERSE: EQUITIES, THEMATIC ETFS, AND MAJOR CRYPTO
+    // -------------------------------------------------------------
+    const STOCK_SPECS = {
+      // =======================================================
+      // MAJOR CRYPTOCURRENCIES (USD)
+      // =======================================================
+      "BTC": {
+        name: "Bitcoin",
+        type: "CRYPTO",
+        region: "GLOBAL",
+        sector: "Layer 1 Digital Gold",
+        currency: "USD",
+        consensus: "Institutional Strong Buy",
+        smartScore: 10,
+        analystCount: 32,
+        sourceTag: "Institutional Consensus",
+        target: 100000.00,
+        lowTarget: 75000.00,
+        highTarget: 140000.00,
+        seed: 1001,
+        dailyVol: 0.028,
+        milestones: [
+          { date: "2019-06-03", price: 8520.00 },
+          { date: "2019-06-26", price: 13800.00 }, // Mid-2019 run
+          { date: "2019-12-18", price: 6600.00 },
+          { date: "2020-01-02", price: 7180.00 },
+          { date: "2020-03-16", price: 5030.00 }, // Covid liquidity wick
+          { date: "2020-12-31", price: 29000.00 },
+          { date: "2021-04-14", price: 64800.00 },
+          { date: "2021-11-10", price: 68789.00 }, // 2021 cycle peak
+          { date: "2022-11-21", price: 15760.00 }, // FTX low
+          { date: "2023-12-29", price: 42200.00 },
+          { date: "2024-03-14", price: 73750.00 },
+          { date: "2024-10-23", price: 67500.00 },
+          { date: "2025-10-15", price: 71200.00 },
+          { date: "2026-10-23", price: 68450.00 }
+        ]
+      },
+      "ETH": {
+        name: "Ethereum",
+        type: "CRYPTO",
+        region: "GLOBAL",
+        sector: "Smart Contract Platform",
+        currency: "USD",
+        consensus: "Institutional Buy",
+        smartScore: 9,
+        analystCount: 26,
+        sourceTag: "Institutional Consensus",
+        target: 4200.00,
+        lowTarget: 2900.00,
+        highTarget: 5500.00,
+        seed: 1002,
+        dailyVol: 0.033,
+        milestones: [
+          { date: "2019-06-03", price: 268.00 },
+          { date: "2019-06-26", price: 335.00 },
+          { date: "2019-12-18", price: 122.00 },
+          { date: "2020-01-02", price: 130.50 },
+          { date: "2020-03-16", price: 110.00 },
+          { date: "2020-12-31", price: 737.00 },
+          { date: "2021-05-12", price: 4160.00 },
+          { date: "2021-11-16", price: 4890.00 },
+          { date: "2022-06-18", price: 995.00 },
+          { date: "2023-12-29", price: 2280.00 },
+          { date: "2024-03-12", price: 4060.00 },
+          { date: "2024-10-23", price: 2540.00 },
+          { date: "2025-10-15", price: 2850.00 },
+          { date: "2026-10-23", price: 2680.00 }
+        ]
+      },
+      "SOL": {
+        name: "Solana",
+        type: "CRYPTO",
+        region: "GLOBAL",
+        sector: "High-Throughput L1",
+        currency: "USD",
+        consensus: "Institutional Strong Buy",
+        smartScore: 9,
+        analystCount: 20,
+        sourceTag: "Institutional Consensus",
+        target: 260.00,
+        lowTarget: 170.00,
+        highTarget: 320.00,
+        seed: 1003,
+        dailyVol: 0.042,
+        milestones: [
+          { date: "2019-06-03", price: 0.22 }, // Seed stage / private valuation
+          { date: "2020-01-02", price: 0.78 }, // Launch
+          { date: "2020-08-15", price: 3.50 },
+          { date: "2021-11-06", price: 259.00 },
+          { date: "2022-12-29", price: 9.80 },
+          { date: "2023-12-29", price: 101.50 },
+          { date: "2024-03-18", price: 202.00 },
+          { date: "2024-10-23", price: 174.00 },
+          { date: "2025-10-15", price: 188.00 },
+          { date: "2026-10-23", price: 182.50 }
+        ]
+      },
+      "XRP": {
+        name: "Ripple (XRP)",
+        type: "CRYPTO",
+        region: "GLOBAL",
+        sector: "Cross-Border Payments",
+        currency: "USD",
+        consensus: "Market Moderate Buy",
+        smartScore: 7,
+        analystCount: 16,
+        sourceTag: "Market Consensus",
+        target: 0.95,
+        lowTarget: 0.48,
+        highTarget: 1.35,
+        seed: 1004,
+        dailyVol: 0.038,
+        milestones: [
+          { date: "2019-06-03", price: 0.44 },
+          { date: "2019-12-18", price: 0.19 },
+          { date: "2020-01-02", price: 0.19 },
+          { date: "2020-03-16", price: 0.15 },
+          { date: "2021-04-14", price: 1.83 },
+          { date: "2022-06-18", price: 0.31 },
+          { date: "2023-07-13", price: 0.82 },
+          { date: "2023-12-29", price: 0.61 },
+          { date: "2024-10-23", price: 0.53 },
+          { date: "2026-10-23", price: 0.58 }
+        ]
+      },
+      "BNB": {
+        name: "Binance Coin",
+        type: "CRYPTO",
+        region: "GLOBAL",
+        sector: "Exchange & BSC Ecosystem",
+        currency: "USD",
+        consensus: "Institutional Outperform",
+        smartScore: 8,
+        analystCount: 14,
+        sourceTag: "Institutional Consensus",
+        target: 820.00,
+        lowTarget: 520.00,
+        highTarget: 950.00,
+        seed: 1005,
+        dailyVol: 0.027,
+        milestones: [
+          { date: "2019-06-03", price: 31.50 },
+          { date: "2019-12-18", price: 12.80 },
+          { date: "2020-01-02", price: 13.80 },
+          { date: "2020-03-16", price: 9.80 },
+          { date: "2021-05-10", price: 675.00 },
+          { date: "2022-06-18", price: 210.00 },
+          { date: "2023-12-29", price: 312.00 },
+          { date: "2024-06-06", price: 717.00 },
+          { date: "2024-10-23", price: 588.00 },
+          { date: "2026-10-23", price: 594.00 }
+        ]
+      },
+      "ADA": {
+        name: "Cardano",
+        type: "CRYPTO",
+        region: "GLOBAL",
+        sector: "Proof-of-Stake L1",
+        currency: "USD",
+        consensus: "Market Hold",
+        smartScore: 6,
+        analystCount: 12,
+        sourceTag: "Market Consensus",
+        target: 0.55,
+        lowTarget: 0.28,
+        highTarget: 0.80,
+        seed: 1006,
+        dailyVol: 0.036,
+        milestones: [
+          { date: "2019-06-03", price: 0.085 },
+          { date: "2019-12-18", price: 0.032 },
+          { date: "2020-01-02", price: 0.034 },
+          { date: "2020-03-16", price: 0.022 },
+          { date: "2021-09-02", price: 3.09 },
+          { date: "2022-12-30", price: 0.24 },
+          { date: "2023-12-29", price: 0.59 },
+          { date: "2024-03-13", price: 0.77 },
+          { date: "2024-10-23", price: 0.35 },
+          { date: "2026-10-23", price: 0.37 }
+        ]
+      },
+
+      // =======================================================
+      // INDIVIDUAL STOCKS (US MEGA-CAPS & TECH)
+      // =======================================================
+      "NVDA": {
+        name: "NVIDIA Corporation",
+        type: "STOCK",
+        region: "US",
+        sector: "Semiconductors",
+        currency: "USD",
+        consensus: "Strong Buy",
+        smartScore: 10,
+        analystCount: 44,
+        sourceTag: "Wall Street Consensus",
+        target: 265.00,
+        lowTarget: 185.00,
+        highTarget: 310.00,
+        seed: 101,
+        dailyVol: 0.024,
+        milestones: [
+          { date: "2019-06-03", price: 3.38 }, // 40:1 split adjusted
+          { date: "2019-11-15", price: 5.12 },
+          { date: "2020-01-02", price: 5.92 },
+          { date: "2020-02-19", price: 7.87 }, // Pre-Covid peak
+          { date: "2020-03-23", price: 4.54 }, // Covid trough
+          { date: "2020-12-31", price: 13.05 },
+          { date: "2021-11-22", price: 33.40 },
+          { date: "2022-10-14", price: 11.23 },
+          { date: "2023-05-25", price: 38.00 },
+          { date: "2023-12-29", price: 49.52 },
+          { date: "2024-06-20", price: 135.58 },
+          { date: "2024-10-31", price: 138.00 },
+          { date: "2025-12-31", price: 198.50 },
+          { date: "2026-10-23", price: 212.80 }
+        ]
+      },
+      "AAPL": {
+        name: "Apple Inc.",
+        type: "STOCK",
+        region: "US",
+        sector: "Consumer Tech",
+        currency: "USD",
+        consensus: "Moderate Buy",
+        smartScore: 9,
+        analystCount: 38,
+        sourceTag: "Wall Street Consensus",
+        target: 385.00,
+        lowTarget: 310.00,
+        highTarget: 430.00,
+        seed: 202,
+        dailyVol: 0.015,
+        milestones: [
+          { date: "2019-06-03", price: 43.32 }, // Split-adjusted
+          { date: "2019-10-25", price: 61.64 },
+          { date: "2020-01-02", price: 75.09 },
+          { date: "2020-02-12", price: 81.80 },
+          { date: "2020-03-23", price: 56.09 },
+          { date: "2020-12-31", price: 132.69 },
+          { date: "2021-12-31", price: 177.57 },
+          { date: "2022-12-28", price: 126.04 },
+          { date: "2023-12-29", price: 192.53 },
+          { date: "2024-12-31", price: 250.40 },
+          { date: "2025-12-31", price: 326.50 },
+          { date: "2026-10-23", price: 338.70 }
+        ]
+      },
+      "MSFT": {
+        name: "Microsoft Corporation",
+        type: "STOCK",
+        region: "US",
+        sector: "Cloud / Software",
+        currency: "USD",
+        consensus: "Strong Buy",
+        smartScore: 10,
+        analystCount: 39,
+        sourceTag: "Wall Street Consensus",
+        target: 615.00,
+        lowTarget: 515.00,
+        highTarget: 680.00,
+        seed: 303,
+        dailyVol: 0.016,
+        milestones: [
+          { date: "2019-06-03", price: 119.84 },
+          { date: "2019-11-01", price: 143.72 },
+          { date: "2020-01-02", price: 160.62 },
+          { date: "2020-02-10", price: 188.70 },
+          { date: "2020-03-23", price: 135.98 },
+          { date: "2020-12-31", price: 222.42 },
+          { date: "2021-11-22", price: 343.11 },
+          { date: "2022-11-03", price: 214.25 },
+          { date: "2023-12-29", price: 376.04 },
+          { date: "2024-07-05", price: 467.56 },
+          { date: "2025-12-31", price: 524.00 },
+          { date: "2026-10-23", price: 532.40 }
+        ]
+      },
+      "PLTR": {
+        name: "Palantir Technologies",
+        type: "STOCK",
+        region: "US",
+        sector: "AI & Defense Software",
+        currency: "USD",
+        consensus: "Moderate Buy",
+        smartScore: 9,
+        analystCount: 22,
+        sourceTag: "Wall Street Consensus",
+        target: 52.00,
+        lowTarget: 32.00,
+        highTarget: 65.00,
+        seed: 808,
+        dailyVol: 0.032,
+        milestones: [
+          { date: "2019-06-03", price: 6.20 },
+          { date: "2020-01-02", price: 9.50 },
+          { date: "2020-09-30", price: 10.00 }, // DPO
+          { date: "2021-01-27", price: 39.00 },
+          { date: "2022-12-28", price: 6.42 },
+          { date: "2023-11-15", price: 19.80 },
+          { date: "2024-09-23", price: 37.00 },
+          { date: "2025-12-31", price: 41.50 },
+          { date: "2026-10-23", price: 44.30 }
+        ]
+      },
+      "AMZN": {
+        name: "Amazon.com, Inc.",
+        type: "STOCK",
+        region: "US",
+        sector: "E-Commerce / Cloud",
+        currency: "USD",
+        consensus: "Strong Buy",
+        smartScore: 10,
+        analystCount: 45,
+        sourceTag: "Wall Street Consensus",
+        target: 290.00,
+        lowTarget: 230.00,
+        highTarget: 325.00,
+        seed: 707,
+        dailyVol: 0.018,
+        milestones: [
+          { date: "2019-06-03", price: 86.60 },
+          { date: "2019-10-15", price: 88.50 },
+          { date: "2020-01-02", price: 94.90 },
+          { date: "2020-02-19", price: 108.50 },
+          { date: "2020-03-16", price: 84.00 },
+          { date: "2021-07-08", price: 186.57 },
+          { date: "2022-12-28", price: 81.82 },
+          { date: "2023-12-29", price: 151.94 },
+          { date: "2024-12-31", price: 219.00 },
+          { date: "2026-10-23", price: 248.80 }
+        ]
+      },
+      "GOOGL": {
+        name: "Alphabet Inc.",
+        type: "STOCK",
+        region: "US",
+        sector: "Search / AI",
+        currency: "USD",
+        consensus: "Strong Buy",
+        smartScore: 9,
+        analystCount: 40,
+        sourceTag: "Wall Street Consensus",
+        target: 255.00,
+        lowTarget: 195.00,
+        highTarget: 290.00,
+        seed: 606,
+        dailyVol: 0.016,
+        milestones: [
+          { date: "2019-06-03", price: 51.95 },
+          { date: "2019-10-25", price: 63.40 },
+          { date: "2020-01-02", price: 68.43 },
+          { date: "2020-02-19", price: 76.05 },
+          { date: "2020-03-23", price: 52.88 },
+          { date: "2021-11-18", price: 149.65 },
+          { date: "2022-11-03", price: 83.43 },
+          { date: "2023-12-29", price: 139.69 },
+          { date: "2024-12-31", price: 192.40 },
+          { date: "2026-10-23", price: 214.50 }
+        ]
+      },
+      "META": {
+        name: "Meta Platforms, Inc.",
+        type: "STOCK",
+        region: "US",
+        sector: "Social Media / AI",
+        currency: "USD",
+        consensus: "Strong Buy",
+        smartScore: 9,
+        analystCount: 46,
+        sourceTag: "Wall Street Consensus",
+        target: 740.00,
+        lowTarget: 600.00,
+        highTarget: 830.00,
+        seed: 909,
+        dailyVol: 0.024,
+        milestones: [
+          { date: "2019-06-03", price: 164.15 },
+          { date: "2019-11-01", price: 193.60 },
+          { date: "2020-01-02", price: 209.78 },
+          { date: "2020-01-29", price: 223.23 },
+          { date: "2020-03-18", price: 146.01 },
+          { date: "2021-09-01", price: 382.18 },
+          { date: "2022-11-04", price: 90.79 },
+          { date: "2023-12-29", price: 353.96 },
+          { date: "2024-10-31", price: 591.80 },
+          { date: "2026-10-23", price: 652.40 }
+        ]
+      },
+      "TSLA": {
+        name: "Tesla, Inc.",
+        type: "STOCK",
+        region: "US",
+        sector: "EV / Robotics",
+        currency: "USD",
+        consensus: "Hold",
+        smartScore: 6,
+        analystCount: 35,
+        sourceTag: "Wall Street Consensus",
+        target: 275.00,
+        lowTarget: 140.00,
+        highTarget: 350.00,
+        seed: 505,
+        dailyVol: 0.032,
+        milestones: [
+          { date: "2019-06-03", price: 11.93 }, // Split adjusted
+          { date: "2019-10-24", price: 20.00 },
+          { date: "2020-01-02", price: 28.70 },
+          { date: "2020-02-19", price: 61.16 }, // Early 2020 parabolic run
+          { date: "2020-03-18", price: 24.10 },
+          { date: "2021-11-04", price: 409.97 },
+          { date: "2022-12-27", price: 109.10 },
+          { date: "2023-12-29", price: 248.48 },
+          { date: "2024-10-24", price: 260.40 },
+          { date: "2026-10-23", price: 254.20 }
+        ]
+      },
+      "AMD": {
+        name: "Advanced Micro Devices",
+        type: "STOCK",
+        region: "US",
+        sector: "Semiconductors",
+        currency: "USD",
+        consensus: "Strong Buy",
+        smartScore: 9,
+        analystCount: 37,
+        sourceTag: "Wall Street Consensus",
+        target: 215.00,
+        lowTarget: 160.00,
+        highTarget: 250.00,
+        seed: 412,
+        dailyVol: 0.026,
+        milestones: [
+          { date: "2019-06-03", price: 27.58 },
+          { date: "2019-11-20", price: 41.29 },
+          { date: "2020-01-02", price: 49.10 },
+          { date: "2020-02-19", price: 58.90 },
+          { date: "2020-03-23", price: 41.50 },
+          { date: "2021-11-29", price: 161.91 },
+          { date: "2022-10-14", price: 55.94 },
+          { date: "2023-12-29", price: 147.41 },
+          { date: "2024-03-08", price: 211.38 },
+          { date: "2026-10-23", price: 172.50 }
+        ]
+      },
+      "BRK.B": {
+        name: "Berkshire Hathaway Inc.",
+        type: "STOCK",
+        region: "US",
+        sector: "Conglomerate",
+        currency: "USD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 12,
+        sourceTag: "Wall Street Consensus",
+        target: 540.00,
+        lowTarget: 470.00,
+        highTarget: 580.00,
+        seed: 413,
+        dailyVol: 0.008,
+        milestones: [
+          { date: "2019-06-03", price: 201.20 },
+          { date: "2019-11-15", price: 220.50 },
+          { date: "2020-01-02", price: 228.39 },
+          { date: "2020-02-14", price: 229.33 },
+          { date: "2020-03-23", price: 162.00 },
+          { date: "2021-12-31", price: 299.00 },
+          { date: "2022-10-14", price: 264.00 },
+          { date: "2023-12-29", price: 356.66 },
+          { date: "2024-12-31", price: 452.00 },
+          { date: "2026-10-23", price: 486.20 }
+        ]
+      },
+      "LMT": {
+        name: "Lockheed Martin Corp",
+        type: "STOCK",
+        region: "US",
+        sector: "Aerospace / Defense",
+        currency: "USD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 18,
+        sourceTag: "Wall Street Consensus",
+        target: 635.00,
+        lowTarget: 540.00,
+        highTarget: 690.00,
+        seed: 414,
+        dailyVol: 0.012,
+        milestones: [
+          { date: "2019-06-03", price: 342.10 },
+          { date: "2019-11-01", price: 374.00 },
+          { date: "2020-01-02", price: 391.20 },
+          { date: "2020-02-12", price: 439.00 },
+          { date: "2020-03-23", price: 277.00 },
+          { date: "2022-02-24", price: 405.00 },
+          { date: "2023-10-06", price: 400.00 },
+          { date: "2024-10-22", price: 585.00 },
+          { date: "2026-10-23", price: 568.40 }
+        ]
+      },
+      "JPM": {
+        name: "JPMorgan Chase & Co.",
+        type: "STOCK",
+        region: "US",
+        sector: "Financials / Banking",
+        currency: "USD",
+        consensus: "Moderate Buy",
+        smartScore: 9,
+        analystCount: 26,
+        sourceTag: "Wall Street Consensus",
+        target: 275.00,
+        lowTarget: 220.00,
+        highTarget: 300.00,
+        seed: 415,
+        dailyVol: 0.013,
+        milestones: [
+          { date: "2019-06-03", price: 104.50 },
+          { date: "2019-11-15", price: 130.40 },
+          { date: "2020-01-02", price: 140.00 },
+          { date: "2020-02-14", price: 141.10 },
+          { date: "2020-03-23", price: 79.03 },
+          { date: "2021-10-25", price: 171.78 },
+          { date: "2022-10-12", price: 104.00 },
+          { date: "2023-12-29", price: 170.10 },
+          { date: "2024-12-31", price: 240.50 },
+          { date: "2026-10-23", price: 252.10 }
+        ]
+      },
+      "LLY": {
+        name: "Eli Lilly and Company",
+        type: "STOCK",
+        region: "US",
+        sector: "Healthcare / Pharma",
+        currency: "USD",
+        consensus: "Strong Buy",
+        smartScore: 10,
+        analystCount: 29,
+        sourceTag: "Wall Street Consensus",
+        target: 1150.00,
+        lowTarget: 950.00,
+        highTarget: 1280.00,
+        seed: 416,
+        dailyVol: 0.018,
+        milestones: [
+          { date: "2019-06-03", price: 115.40 },
+          { date: "2019-11-20", price: 116.80 },
+          { date: "2020-01-02", price: 131.80 },
+          { date: "2020-02-19", price: 149.00 },
+          { date: "2020-03-23", price: 125.00 },
+          { date: "2021-12-31", price: 276.00 },
+          { date: "2022-12-30", price: 365.84 },
+          { date: "2023-12-29", price: 582.92 },
+          { date: "2024-08-08", price: 920.00 },
+          { date: "2026-10-23", price: 988.50 }
+        ]
+      },
+
+      // =======================================================
+      // AUSTRALIAN ASX BLUE-CHIPS (AUD)
+      // =======================================================
+      "CSL": {
+        name: "CSL Limited",
+        type: "STOCK",
+        region: "ASX",
+        sector: "Healthcare Biotech",
+        currency: "AUD",
+        consensus: "Strong Buy",
+        smartScore: 9,
+        analystCount: 17,
+        sourceTag: "Wall Street Consensus",
+        target: 345.00,
+        lowTarget: 295.00,
+        highTarget: 370.00,
+        seed: 311,
+        dailyVol: 0.012,
+        milestones: [
+          { date: "2019-06-03", price: 205.00 },
+          { date: "2019-11-15", price: 260.00 },
+          { date: "2020-01-02", price: 282.00 },
+          { date: "2020-02-18", price: 338.00 }, // Pre-Covid peak
+          { date: "2020-03-23", price: 275.00 },
+          { date: "2021-11-23", price: 310.00 },
+          { date: "2022-10-21", price: 278.00 },
+          { date: "2023-10-31", price: 232.00 },
+          { date: "2024-08-30", price: 305.00 },
+          { date: "2026-10-23", price: 318.50 }
+        ]
+      },
+      "BHP": {
+        name: "BHP Group Limited",
+        type: "STOCK",
+        region: "ASX",
+        sector: "Mining Resources",
+        currency: "AUD",
+        consensus: "Hold",
+        smartScore: 7,
+        analystCount: 19,
+        sourceTag: "Wall Street Consensus",
+        target: 46.50,
+        lowTarget: 38.00,
+        highTarget: 52.00,
+        seed: 321,
+        dailyVol: 0.016,
+        milestones: [
+          { date: "2019-06-03", price: 37.80 },
+          { date: "2019-11-15", price: 37.20 },
+          { date: "2020-01-02", price: 39.50 },
+          { date: "2020-01-20", price: 41.60 },
+          { date: "2020-03-23", price: 25.20 },
+          { date: "2021-08-03", price: 53.80 },
+          { date: "2022-10-31", price: 37.00 },
+          { date: "2023-01-27", price: 49.80 },
+          { date: "2024-09-20", price: 39.80 },
+          { date: "2026-10-23", price: 42.60 }
+        ]
+      },
+      "CBA": {
+        name: "Commonwealth Bank of Australia",
+        type: "STOCK",
+        region: "ASX",
+        sector: "ASX Big 4 Bank",
+        currency: "AUD",
+        consensus: "Underperform",
+        smartScore: 5,
+        analystCount: 14,
+        sourceTag: "Wall Street Consensus",
+        target: 115.00,
+        lowTarget: 95.00,
+        highTarget: 140.00,
+        seed: 331,
+        dailyVol: 0.011,
+        milestones: [
+          { date: "2019-06-03", price: 77.50 },
+          { date: "2019-11-15", price: 81.20 },
+          { date: "2020-01-02", price: 80.50 },
+          { date: "2020-02-14", price: 91.00 }, // Pre-Covid peak
+          { date: "2020-03-23", price: 54.00 },
+          { date: "2021-11-08", price: 108.00 },
+          { date: "2022-06-17", price: 89.00 },
+          { date: "2023-12-29", price: 112.00 },
+          { date: "2024-10-31", price: 142.50 },
+          { date: "2026-10-23", price: 148.00 }
+        ]
+      },
+      "WES": {
+        name: "Wesfarmers Limited",
+        type: "STOCK",
+        region: "ASX",
+        sector: "Retail & Industrial",
+        currency: "AUD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 15,
+        sourceTag: "Wall Street Consensus",
+        target: 78.00,
+        lowTarget: 66.00,
+        highTarget: 86.00,
+        seed: 341,
+        dailyVol: 0.011,
+        milestones: [
+          { date: "2019-06-03", price: 36.80 },
+          { date: "2019-11-15", price: 40.50 },
+          { date: "2020-01-02", price: 41.50 },
+          { date: "2020-02-20", price: 46.80 },
+          { date: "2020-03-23", price: 31.80 },
+          { date: "2021-08-20", price: 65.00 },
+          { date: "2022-06-20", price: 42.50 },
+          { date: "2023-12-29", price: 57.00 },
+          { date: "2024-10-31", price: 71.50 },
+          { date: "2026-10-23", price: 73.80 }
+        ]
+      },
+
+      // =======================================================
+      // THEMATIC & CORE ETFS (AUSTRALIAN ASX - AUD)
+      // =======================================================
+      "DFND": {
+        name: "VanEck Global Defence ETF",
+        type: "ETF",
+        region: "ASX",
+        sector: "ASX Thematic ETF",
+        currency: "AUD",
+        consensus: "Strong Buy",
+        smartScore: 9,
+        analystCount: 34,
+        sourceTag: "Wall Street Consensus",
+        target: 38.50,
+        lowTarget: 33.00,
+        highTarget: 44.00,
+        seed: 701,
+        dailyVol: 0.013,
+        milestones: [
+          { date: "2019-06-03", price: 14.80 }, // Synthetic backtest
+          { date: "2019-11-15", price: 16.10 },
+          { date: "2020-01-02", price: 16.50 },
+          { date: "2020-02-14", price: 18.20 },
+          { date: "2020-03-23", price: 13.20 },
+          { date: "2022-02-24", price: 19.80 },
+          { date: "2023-12-29", price: 24.60 },
+          { date: "2024-09-10", price: 20.00 },
+          { date: "2025-06-30", price: 27.80 },
+          { date: "2026-10-23", price: 31.60 }
+        ]
+      },
+      "SEMI": {
+        name: "Global X Semiconductor ETF",
+        type: "ETF",
+        region: "ASX",
+        sector: "ASX Thematic ETF",
+        currency: "AUD",
+        consensus: "Strong Buy",
+        smartScore: 9,
+        analystCount: 38,
+        sourceTag: "Wall Street Consensus",
+        target: 42.00,
+        lowTarget: 32.50,
+        highTarget: 48.00,
+        seed: 702,
+        dailyVol: 0.022,
+        milestones: [
+          { date: "2019-06-03", price: 7.20 },
+          { date: "2019-11-15", price: 9.10 },
+          { date: "2020-01-02", price: 9.80 },
+          { date: "2020-02-19", price: 11.40 },
+          { date: "2020-03-23", price: 7.90 },
+          { date: "2021-08-27", price: 10.00 },
+          { date: "2021-11-20", price: 13.80 },
+          { date: "2022-10-14", price: 8.60 },
+          { date: "2023-12-29", price: 16.90 },
+          { date: "2024-06-20", price: 29.50 },
+          { date: "2025-12-31", price: 31.20 },
+          { date: "2026-10-23", price: 33.00 }
+        ]
+      },
+      "VEU": {
+        name: "Vanguard All-World ex-US ETF",
+        type: "ETF",
+        region: "ASX",
+        sector: "ASX World ex-US",
+        currency: "AUD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 52,
+        sourceTag: "Wall Street Consensus",
+        target: 128.00,
+        lowTarget: 110.00,
+        highTarget: 138.00,
+        seed: 703,
+        dailyVol: 0.010,
+        milestones: [
+          { date: "2019-06-03", price: 71.50 },
+          { date: "2019-11-15", price: 75.80 },
+          { date: "2020-01-02", price: 77.20 },
+          { date: "2020-01-17", price: 79.10 },
+          { date: "2020-03-23", price: 58.40 },
+          { date: "2021-06-15", price: 84.50 },
+          { date: "2022-10-14", price: 68.20 },
+          { date: "2023-12-29", price: 94.60 },
+          { date: "2024-12-31", price: 106.80 },
+          { date: "2026-10-23", price: 115.37 }
+        ]
+      },
+      "VETH": {
+        name: "Vanguard Ethically Conscious Shares",
+        type: "ETF",
+        region: "ASX",
+        sector: "ASX Ethical ETF",
+        currency: "AUD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 28,
+        sourceTag: "Wall Street Consensus",
+        target: 74.00,
+        lowTarget: 64.00,
+        highTarget: 80.00,
+        seed: 704,
+        dailyVol: 0.011,
+        milestones: [
+          { date: "2019-06-03", price: 46.20 },
+          { date: "2019-11-15", price: 49.50 },
+          { date: "2020-01-02", price: 50.80 },
+          { date: "2020-02-20", price: 54.20 },
+          { date: "2020-03-23", price: 38.60 },
+          { date: "2020-10-12", price: 50.60 },
+          { date: "2021-11-15", price: 61.20 },
+          { date: "2022-06-20", price: 52.80 },
+          { date: "2023-12-29", price: 60.40 },
+          { date: "2024-10-31", price: 65.50 },
+          { date: "2026-10-23", price: 66.99 }
+        ]
+      },
+      "VAS": {
+        name: "Vanguard Australian Shares Index ETF",
+        type: "ETF",
+        region: "ASX",
+        sector: "ASX 300 Index",
+        currency: "AUD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 300,
+        sourceTag: "Wall Street Consensus",
+        target: 118.00,
+        lowTarget: 104.00,
+        highTarget: 125.00,
+        seed: 705,
+        dailyVol: 0.009,
+        milestones: [
+          { date: "2019-06-03", price: 80.20 },
+          { date: "2019-11-15", price: 85.60 },
+          { date: "2020-01-02", price: 87.50 },
+          { date: "2020-02-20", price: 92.40 }, // Pre-Covid peak
+          { date: "2020-03-23", price: 58.20 },
+          { date: "2021-08-13", price: 96.20 },
+          { date: "2022-06-20", price: 81.30 },
+          { date: "2023-12-29", price: 95.80 },
+          { date: "2024-10-31", price: 102.50 },
+          { date: "2026-10-23", price: 108.57 }
+        ]
+      },
+      "NDQ": {
+        name: "Betashares Nasdaq 100 ETF",
+        type: "ETF",
+        region: "ASX",
+        sector: "ASX US Tech (AUD)",
+        currency: "AUD",
+        consensus: "Strong Buy",
+        smartScore: 9,
+        analystCount: 100,
+        sourceTag: "Wall Street Consensus",
+        target: 72.00,
+        lowTarget: 56.00,
+        highTarget: 78.00,
+        seed: 706,
+        dailyVol: 0.016,
+        milestones: [
+          { date: "2019-06-03", price: 15.80 },
+          { date: "2019-11-15", price: 19.40 },
+          { date: "2020-01-02", price: 21.43 },
+          { date: "2020-02-19", price: 24.30 },
+          { date: "2020-03-23", price: 18.20 },
+          { date: "2021-12-17", price: 35.25 },
+          { date: "2022-12-09", price: 26.59 },
+          { date: "2023-12-29", price: 38.60 },
+          { date: "2024-10-31", price: 46.20 },
+          { date: "2026-10-23", price: 60.10 }
+        ]
+      },
+      "VGS": {
+        name: "Vanguard MSCI Intl Shares ETF",
+        type: "ETF",
+        region: "ASX",
+        sector: "ASX World Index",
+        currency: "AUD",
+        consensus: "Strong Buy",
+        smartScore: 9,
+        analystCount: 120,
+        sourceTag: "Wall Street Consensus",
+        target: 182.00,
+        lowTarget: 154.00,
+        highTarget: 195.00,
+        seed: 707,
+        dailyVol: 0.011,
+        milestones: [
+          { date: "2019-06-03", price: 77.80 },
+          { date: "2019-11-15", price: 85.10 },
+          { date: "2020-01-02", price: 88.40 },
+          { date: "2020-02-19", price: 94.80 },
+          { date: "2020-03-23", price: 66.80 },
+          { date: "2021-12-31", price: 108.50 },
+          { date: "2022-10-14", price: 89.20 },
+          { date: "2023-12-29", price: 116.40 },
+          { date: "2024-12-31", price: 146.50 },
+          { date: "2026-10-23", price: 161.11 }
+        ]
+      },
+      "ACDC": {
+        name: "Global X Battery Tech & Lithium ETF",
+        type: "ETF",
+        region: "ASX",
+        sector: "ASX Thematic ETF",
+        currency: "AUD",
+        consensus: "Moderate Buy",
+        smartScore: 7,
+        analystCount: 22,
+        sourceTag: "Wall Street Consensus",
+        target: 145.00,
+        lowTarget: 105.00,
+        highTarget: 165.00,
+        seed: 708,
+        dailyVol: 0.024,
+        milestones: [
+          { date: "2019-06-03", price: 48.20 },
+          { date: "2019-11-15", price: 51.40 },
+          { date: "2020-01-02", price: 54.87 },
+          { date: "2020-02-19", price: 58.50 },
+          { date: "2020-03-23", price: 41.20 },
+          { date: "2021-11-20", price: 95.25 },
+          { date: "2022-06-20", price: 75.90 },
+          { date: "2023-07-28", price: 102.32 },
+          { date: "2024-04-15", price: 95.50 },
+          { date: "2026-10-23", price: 121.00 }
+        ]
+      },
+      "IVV.AX": {
+        name: "iShares S&P 500 ETF (AUD)",
+        type: "ETF",
+        region: "ASX",
+        sector: "ASX S&P 500",
+        currency: "AUD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 500,
+        sourceTag: "Wall Street Consensus",
+        target: 82.50,
+        lowTarget: 70.00,
+        highTarget: 88.00,
+        seed: 709,
+        dailyVol: 0.010,
+        milestones: [
+          { date: "2019-06-03", price: 33.40 },
+          { date: "2019-11-15", price: 37.80 },
+          { date: "2020-01-02", price: 39.50 },
+          { date: "2020-02-19", price: 43.10 },
+          { date: "2020-03-23", price: 29.80 },
+          { date: "2021-12-31", price: 51.20 },
+          { date: "2022-10-14", price: 42.60 },
+          { date: "2023-12-29", price: 55.40 },
+          { date: "2024-12-31", price: 68.45 },
+          { date: "2026-10-23", price: 72.64 }
+        ]
+      },
+
+      // =======================================================
+      // CORE INDEX ETFS (US - USD)
+      // =======================================================
+      "IVV": {
+        name: "iShares Core S&P 500 ETF (USD)",
+        type: "ETF",
+        region: "US",
+        sector: "US S&P 500 Index",
+        currency: "USD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 500,
+        sourceTag: "Wall Street Consensus",
+        target: 840.00,
+        lowTarget: 720.00,
+        highTarget: 890.00,
+        seed: 404,
+        dailyVol: 0.009,
+        milestones: [
+          { date: "2019-06-03", price: 275.40 },
+          { date: "2019-11-15", price: 312.20 },
+          { date: "2020-01-02", price: 326.50 },
+          { date: "2020-02-19", price: 339.08 }, // Pre-Covid ATH
+          { date: "2020-03-23", price: 223.70 }, // Covid bottom
+          { date: "2020-12-31", price: 375.62 },
+          { date: "2021-12-31", price: 476.60 },
+          { date: "2022-10-12", price: 358.50 },
+          { date: "2023-12-29", price: 476.90 },
+          { date: "2024-12-31", price: 602.10 },
+          { date: "2026-10-23", price: 764.80 }
+        ]
+      },
+      "SPY": {
+        name: "SPDR S&P 500 ETF Trust",
+        type: "ETF",
+        region: "US",
+        sector: "US S&P 500 Index",
+        currency: "USD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 500,
+        sourceTag: "Wall Street Consensus",
+        target: 838.00,
+        lowTarget: 718.00,
+        highTarget: 888.00,
+        seed: 405,
+        dailyVol: 0.009,
+        milestones: [
+          { date: "2019-06-03", price: 274.00 },
+          { date: "2019-11-15", price: 311.80 },
+          { date: "2020-01-02", price: 324.87 },
+          { date: "2020-02-19", price: 338.34 },
+          { date: "2020-03-23", price: 222.95 },
+          { date: "2021-12-31", price: 474.96 },
+          { date: "2022-10-12", price: 356.56 },
+          { date: "2023-12-29", price: 475.31 },
+          { date: "2024-12-31", price: 600.50 },
+          { date: "2026-10-23", price: 762.30 }
+        ]
+      },
+      "QQQ": {
+        name: "Invesco QQQ Trust (Nasdaq 100)",
+        type: "ETF",
+        region: "US",
+        sector: "US Tech 100 Index",
+        currency: "USD",
+        consensus: "Strong Buy",
+        smartScore: 9,
+        analystCount: 102,
+        sourceTag: "Wall Street Consensus",
+        target: 690.00,
+        lowTarget: 560.00,
+        highTarget: 740.00,
+        seed: 406,
+        dailyVol: 0.015,
+        milestones: [
+          { date: "2019-06-03", price: 170.20 },
+          { date: "2019-11-15", price: 202.80 },
+          { date: "2020-01-02", price: 216.16 },
+          { date: "2020-02-19", price: 237.00 }, // Pre-Covid peak
+          { date: "2020-03-20", price: 169.19 },
+          { date: "2021-11-19", price: 403.99 },
+          { date: "2022-12-28", price: 260.10 },
+          { date: "2023-12-29", price: 409.52 },
+          { date: "2024-12-31", price: 528.20 },
+          { date: "2026-10-23", price: 624.50 }
+        ]
+      }
+    };
+
+    // Synthesize daily session data anchored to historical milestones
+    function buildDailyStockSeries(spec) {
+      const dates = HISTORICAL_DATES;
+      const total = dates.length;
+      const milestones = spec.milestones;
+      const prng = createPRNG(spec.seed);
+
+      const milestoneMap = [];
+      milestones.forEach((m) => {
+        let idx = dates.indexOf(m.date);
+        if (idx === -1) {
+          idx = dates.findIndex(d => d >= m.date);
+          if (idx === -1) idx = total - 1;
+        }
+        milestoneMap.push({ index: idx, price: m.price });
+      });
+
+      milestoneMap.sort((a, b) => a.index - b.index);
+
+      const series = new Float64Array(total);
+      series[0] = milestoneMap[0].price;
+
+      for (let s = 0; s < milestoneMap.length - 1; s++) {
+        const start = milestoneMap[s];
+        const end = milestoneMap[s + 1];
+        const span = end.index - start.index;
+        if (span <= 0) continue;
+
+        let curP = start.price;
+        series[start.index] = Number(curP >= 1 ? curP.toFixed(2) : curP.toFixed(4));
+
+        for (let i = start.index + 1; i <= end.index; i++) {
+          const remainingDays = end.index - i + 1;
+          const currentLog = Math.log(curP);
+          const targetLog = Math.log(end.price);
+          const adjustedDrift = (targetLog - currentLog) / remainingDays;
+
+          const u1 = Math.max(1e-7, prng());
+          const u2 = prng();
+          const z = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+
+          const dailyReturn = adjustedDrift + spec.dailyVol * z;
+          curP = curP * Math.exp(dailyReturn);
+
+          if (i === end.index) curP = end.price;
+          series[i] = Number(curP >= 1 ? curP.toFixed(2) : curP.toFixed(4));
+        }
+      }
+
+      return {
+        name: spec.name,
+        type: spec.type,
+        region: spec.region,
+        sector: spec.sector,
+        currency: spec.currency,
+        consensus: spec.consensus,
+        smartScore: spec.smartScore,
+        analystCount: spec.analystCount,
+        sourceTag: spec.sourceTag || "Wall Street Consensus",
+        target: spec.target,
+        lowTarget: spec.lowTarget,
+        highTarget: spec.highTarget,
+        currentPrice: series[total - 1],
+        series: Array.from(series)
+      };
+    }
+
+    const STOCK_DATABASE = {};
+    Object.keys(STOCK_SPECS).forEach(sym => {
+      STOCK_DATABASE[sym] = buildDailyStockSeries(STOCK_SPECS[sym]);
+    });
+
+    // 8 distinct high-contrast colors
+    const PALETTE = [
+      '#17191C', // Deep Charcoal
+      '#D97706', // Bitcoin Amber
+      '#1E7E34', // Forest Pine
+      '#2C6ECB', // Slate Royal Blue
+      '#8E44AD', // Velvet Plum
+      '#C0392B', // Terracotta Red
+      '#16A085', // Sea Green
+      '#0D9488'  // Deep Teal
+    ];
+
+    // Global application state
+    const app = {
+      selected: ["NVDA", "AAPL", "DFND", "BTC"], // Default: Balanced mix of Tech, Bluechip, ETF, & Crypto
+      sliderMin: 0,
+      sliderMax: HISTORICAL_TOTAL - 1,
+      scaleMode: 'percent', // 'percent' or 'price'
+      showForecast: false,   // 12-Month forward projection toggle
+      searchFilter: 'all',  // 'all', 'stock', 'etf', 'crypto', 'asx', 'us'
+      chart: null,
+      searchSelectedIndex: -1,
+      currentDropdownItems: []
+    };
+
+    function getStock(sym) {
+      if (STOCK_DATABASE[sym]) return STOCK_DATABASE[sym];
+      // Dynamic fallback for any custom ticker
+      const hash = sym.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+      const prng = createPRNG(hash);
+      const isAUD = sym.endsWith('.AX') || ['VEI', 'VAF', 'QUAL', 'GOLD', 'HACK'].includes(sym);
+      const isCrypto = ['DOGE', 'AVAX', 'DOT', 'LINK', 'NEAR', 'SUI'].includes(sym);
+      const startP = isCrypto ? 2.5 : (30 + (hash % 100));
+      const endP = startP * (1.15 + prng() * 1.5);
+      
+      const customSpec = {
+        name: `${sym} Asset`,
+        type: isCrypto ? "CRYPTO" : (isAUD ? "ETF" : "STOCK"),
+        region: isCrypto ? "GLOBAL" : (isAUD ? "ASX" : "US"),
+        sector: isCrypto ? "Digital Assets" : (isAUD ? "ASX Market" : "Global Equities"),
+        currency: isAUD ? "AUD" : "USD",
+        consensus: "Moderate Buy",
+        smartScore: 8,
+        analystCount: 18,
+        sourceTag: isCrypto ? "Institutional Consensus" : "Wall Street Consensus",
+        target: Number((endP * 1.15).toFixed(2)),
+        lowTarget: Number((endP * 0.90).toFixed(2)),
+        highTarget: Number((endP * 1.30).toFixed(2)),
+        seed: hash,
+        dailyVol: isCrypto ? 0.035 : 0.018,
+        milestones: [
+          { date: "2019-06-03", price: startP * 0.8 },
+          { date: "2020-01-02", price: startP },
+          { date: "2020-03-23", price: startP * 0.72 },
+          { date: "2021-11-20", price: startP * 1.8 },
+          { date: "2022-10-14", price: startP * 0.95 },
+          { date: "2026-10-23", price: endP }
+        ]
+      };
+      const built = buildDailyStockSeries(customSpec);
+      STOCK_DATABASE[sym] = built;
+      return built;
+    }
+
+    // Forward 12-Month projection curve generator
+    function generateForecastPath(startValue, targetValue, steps) {
+      const path = [];
+      for (let i = 1; i <= steps; i++) {
+        const progress = i / steps;
+        const ease = 1 - Math.pow(1 - progress, 1.4);
+        const val = startValue + (targetValue - startValue) * ease;
+        path.push(Number(val.toFixed(2)));
+      }
+      return path;
+    }
+
+    function formatAssetPrice(val, currency) {
+      const curr = currency === 'AUD' ? 'A$' : '$';
+      if (val >= 1000) return `${curr}${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      if (val >= 1) return `${curr}${val.toFixed(2)}`;
+      return `${curr}${val.toFixed(4)}`;
+    }
+
+    // -------------------------------------------------------------
+    // 3. RENDER CHART ENGINE
+    // -------------------------------------------------------------
+    function renderChart() {
+      const minIdx = Math.max(0, Math.min(app.sliderMin, app.sliderMax - 10));
+      const maxIdx = Math.min(HISTORICAL_TOTAL - 1, Math.max(app.sliderMax, minIdx + 10));
+
+      const activeHistoricalDates = HISTORICAL_DATES.slice(minIdx, maxIdx + 1);
+      const sessionCount = activeHistoricalDates.length;
+
+      document.getElementById('labelStartDate').innerText = activeHistoricalDates[0];
+      document.getElementById('labelEndDate').innerText = activeHistoricalDates[sessionCount - 1];
+      document.getElementById('labelSessionCount').innerText = sessionCount.toLocaleString();
+
+      // Check asset and currency disparity in Price mode
+      const selectedStocks = app.selected.map(s => getStock(s));
+      const hasCrypto = selectedStocks.some(s => s.type === 'CRYPTO');
+      const hasStockOrEtf = selectedStocks.some(s => s.type !== 'CRYPTO');
+      const currencies = new Set(selectedStocks.map(s => s.currency));
+      
+      const notice = document.getElementById('currencyNotice');
+      if (app.scaleMode === 'price' && ((hasCrypto && hasStockOrEtf) || currencies.size > 1)) {
+        notice.classList.remove('hidden');
+      } else {
+        notice.classList.add('hidden');
+      }
+
+      let chartLabels = activeHistoricalDates;
+      let forecastSteps = 0;
+      if (app.showForecast) {
+        forecastSteps = 252;
+        const forecastDatesSlice = FORECAST_DATES.slice(0, forecastSteps);
+        chartLabels = [...activeHistoricalDates, ...forecastDatesSlice];
+      }
+
+      const datasets = [];
+
+      app.selected.forEach((sym, index) => {
+        const stock = getStock(sym);
+        const sliced = stock.series.slice(minIdx, maxIdx + 1);
+        const basePrice = sliced[0];
+        const color = PALETTE[index % PALETTE.length];
+
+        // 1. Historical Dataset
+        const historicalPoints = app.scaleMode === 'percent'
+          ? sliced.map(p => Number((((p - basePrice) / basePrice) * 100).toFixed(2)))
+          : sliced.map(p => p);
+
+        const fullHistoricalData = app.showForecast
+          ? [...historicalPoints, ...new Array(forecastSteps).fill(null)]
+          : historicalPoints;
+
+        datasets.push({
+          label: `${sym} (${stock.currency})`,
+          data: fullHistoricalData,
+          borderColor: color,
+          borderWidth: 1.8,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: color,
+          pointHoverBorderColor: '#FFFFFF',
+          pointHoverBorderWidth: 2,
+          tension: 0.05
+        });
+
+        // 2. Prediction Dataset (if Forecast is enabled)
+        if (app.showForecast) {
+          const lastHistoricalIdx = sliced.length - 1;
+          const lastHistoricalVal = historicalPoints[lastHistoricalIdx];
+
+          let targetVal;
+          if (app.scaleMode === 'percent') {
+            targetVal = Number((((stock.target - basePrice) / basePrice) * 100).toFixed(2));
+          } else {
+            targetVal = stock.target;
+          }
+
+          const forwardPoints = generateForecastPath(lastHistoricalVal, targetVal, forecastSteps);
+
+          const predictionData = new Array(chartLabels.length).fill(null);
+          predictionData[lastHistoricalIdx] = lastHistoricalVal;
+          for (let f = 0; f < forwardPoints.length; f++) {
+            predictionData[lastHistoricalIdx + 1 + f] = forwardPoints[f];
+          }
+
+          datasets.push({
+            label: `${sym} Target (${formatAssetPrice(stock.target, stock.currency)})`,
+            data: predictionData,
+            borderColor: color,
+            borderWidth: 2,
+            borderDash: [5, 4],
+            pointRadius: (ctx) => (ctx.dataIndex === chartLabels.length - 1 ? 4 : 0),
+            pointBackgroundColor: color,
+            pointBorderColor: '#FFFFFF',
+            pointBorderWidth: 1.5,
+            tension: 0.15
+          });
+        }
+      });
+
+      const ctx = document.getElementById('stockChart').getContext('2d');
+      if (app.chart) app.chart.destroy();
+
+      app.chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels: chartLabels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: {
+              position: 'top',
+              align: 'end',
+              labels: {
+                boxWidth: 8,
+                boxHeight: 8,
+                usePointStyle: true,
+                pointStyle: 'circle',
+                color: '#3D424A',
+                font: { family: '"Plus Jakarta Sans"', size: 11, weight: 600 },
+                filter: (item) => {
+                  return app.showForecast ? !item.text.includes('Target') : true;
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: '#17191C',
+              titleColor: '#FFFFFF',
+              bodyColor: '#E5E3DE',
+              padding: 10,
+              cornerRadius: 8,
+              titleFont: { family: '"Plus Jakarta Sans"', size: 11, weight: 600 },
+              bodyFont: { family: '"Plus Jakarta Sans"', size: 12 },
+              // Sort items dynamically so top-most line on the chart appears first in the tooltip
+              itemSort: (a, b) => {
+                const valA = a.parsed.y !== null && a.parsed.y !== undefined ? a.parsed.y : -Infinity;
+                const valB = b.parsed.y !== null && b.parsed.y !== undefined ? b.parsed.y : -Infinity;
+                return valB - valA;
+              },
+              callbacks: {
+                title: (items) => {
+                  const label = items[0].label;
+                  return label > "2026-10-23" ? `Forward Target Horizon: ${label}` : `Trading Day: ${label}`;
+                },
+                label: (ctx) => {
+                  const val = ctx.parsed.y;
+                  if (val === null || val === undefined) return null;
+                  const isPrediction = ctx.dataset.label.includes('Target');
+                  const prefix = isPrediction ? `[Target] ` : ``;
+                  return app.scaleMode === 'percent'
+                    ? ` ${prefix}${ctx.dataset.label}: ${val >= 0 ? '+' : ''}${val.toFixed(2)}%`
+                    : ` ${prefix}${ctx.dataset.label}: ${val >= 1000 ? val.toLocaleString() : val.toFixed(2)}`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: {
+                color: '#6E7480',
+                font: { family: '"Plus Jakarta Sans"', size: 11 },
+                maxTicksLimit: 8,
+                callback: function(val) {
+                  const d = chartLabels[val];
+                  return d ? d.substring(0, 7) : '';
+                }
+              }
+            },
+            y: {
+              grid: { color: '#E5E3DE', drawBorder: false },
+              ticks: {
+                color: '#6E7480',
+                font: { family: '"Plus Jakarta Sans"', size: 11 },
+                callback: (v) => app.scaleMode === 'percent' ? `${v >= 0 ? '+' : ''}${v}%` : (v >= 1000 ? `$${v.toLocaleString()}` : `$${v}`)
+              }
+            }
+          }
+        }
+      });
+
+      renderAnalystCards();
+    }
+
+    // -------------------------------------------------------------
+    // 4. WALL STREET & INSTITUTIONAL PREDICTION CARDS
+    // -------------------------------------------------------------
+    function renderAnalystCards() {
+      const container = document.getElementById('analystCardsContainer');
+      container.innerHTML = '';
+
+      app.selected.forEach((sym, index) => {
+        const stock = getStock(sym);
+        const upside = (((stock.target - stock.currentPrice) / stock.currentPrice) * 100).toFixed(1);
+        const isGain = Number(upside) >= 0;
+        const color = PALETTE[index % PALETTE.length];
+        const isCrypto = stock.type === 'CRYPTO';
+        const isAUD = stock.currency === 'AUD';
+
+        let badgeTypeStyle = 'bg-blue-50 text-blue-900 border-blue-200';
+        if (stock.type === 'ETF') badgeTypeStyle = 'bg-purple-100 text-purple-900 border-purple-200';
+        if (isCrypto) badgeTypeStyle = 'bg-amber-100 text-amber-900 border-amber-300';
+
+        let scoreBg = "bg-emerald-100 text-emerald-800 border-emerald-300";
+        if (stock.smartScore <= 6) scoreBg = "bg-amber-100 text-amber-800 border-amber-300";
+        if (stock.smartScore <= 3) scoreBg = "bg-rose-100 text-rose-800 border-rose-300";
+
+        const card = document.createElement('div');
+        card.className = "bg-surface border border-line rounded-xl p-4 shadow-sm flex flex-col justify-between space-y-3.5 hover:border-lineDark transition relative group";
+        card.innerHTML = `
+          <!-- Header -->
+          <div class="flex items-start justify-between">
+            <div class="flex items-center space-x-2.5">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${color}"></span>
+              <div>
+                <div class="flex items-center space-x-1.5">
+                  <span class="font-bold text-sm text-ink-900">${sym}</span>
+                  <span class="text-[9px] font-bold px-1.5 py-0.2 rounded border ${badgeTypeStyle}">
+                    ${isCrypto ? '⚡ CRYPTO' : stock.type}
+                  </span>
+                  <span class="text-[9px] font-semibold px-1.5 py-0.2 rounded ${isAUD ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-line text-ink-700'}">${stock.currency}</span>
+                </div>
+                <span class="text-xs text-ink-500 block truncate max-w-[170px]">${stock.name}</span>
+              </div>
+            </div>
+            <div class="text-right flex items-center space-x-2">
+              <div>
+                <span class="font-bold text-sm text-ink-900">${formatAssetPrice(stock.currentPrice, stock.currency)}</span>
+                <span class="text-[10px] text-ink-500 block">latest session</span>
+              </div>
+              <button onclick="removeStock('${sym}')" class="opacity-0 group-hover:opacity-100 text-ink-300 hover:text-loss p-1 rounded transition" title="Remove">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Consensus & Conviction Rating -->
+          <div class="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-lg bg-canvas border border-line">
+            <div class="flex items-center space-x-1.5">
+              <span class="text-ink-500">${isCrypto ? 'Model:' : 'Consensus:'}</span>
+              <span class="font-bold ${stock.consensus.includes('Buy') || stock.consensus.includes('Outperform') ? 'text-gain' : stock.consensus.includes('Underperform') ? 'text-loss' : 'text-ink-700'}">${stock.consensus}</span>
+              <span class="text-[10px] text-ink-500">(${stock.analystCount})</span>
+            </div>
+            <div class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded border text-[11px] font-bold ${scoreBg}">
+              <span>${isCrypto ? 'Conviction:' : 'Smart Score:'} ${stock.smartScore}/10</span>
+            </div>
+          </div>
+
+          <!-- Target & Implied Upside -->
+          <div class="flex items-center justify-between text-xs pt-0.5">
+            <div>
+              <span class="text-ink-500 block text-[11px]">${isCrypto ? '12M Institutional Target' : '12M Median Target'}</span>
+              <span class="font-bold text-ink-900 text-sm">${formatAssetPrice(stock.target, stock.currency)}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-ink-500 block text-[11px]">Implied Upside</span>
+              <span class="font-bold text-xs ${isGain ? 'text-gain' : 'text-loss'}">
+                ${isGain ? '+' : ''}${upside}%
+              </span>
+            </div>
+          </div>
+
+          <!-- Target Corridor -->
+          <div class="space-y-1 pt-1 border-t border-line/40 text-[10px] text-ink-500">
+            <div class="flex justify-between">
+              <span>Low: ${formatAssetPrice(stock.lowTarget, stock.currency)}</span>
+              <span class="font-semibold text-ink-700">${isCrypto ? 'Analyst / Model Corridor' : 'Analyst Range'}</span>
+              <span>High: ${formatAssetPrice(stock.highTarget, stock.currency)}</span>
+            </div>
+            <div class="w-full bg-line h-1 rounded-full overflow-hidden">
+              <div class="bg-ink-700 h-full rounded-full" style="width: 72%"></div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    // -------------------------------------------------------------
+    // 5. ACTIVE STOCKS MANAGEMENT & PRESETS
+    // -------------------------------------------------------------
+    function renderStockTags() {
+      const container = document.getElementById('activeStockTags');
+      container.innerHTML = '';
+
+      app.selected.forEach((sym, index) => {
+        const stock = getStock(sym);
+        const color = PALETTE[index % PALETTE.length];
+        const isCrypto = stock.type === 'CRYPTO';
+        const isAUD = stock.currency === 'AUD';
+
+        let typeBadgeClass = 'bg-blue-50 text-blue-900';
+        if (stock.type === 'ETF') typeBadgeClass = 'bg-purple-100 text-purple-900';
+        if (isCrypto) typeBadgeClass = 'bg-amber-100 text-amber-900';
+
+        const tag = document.createElement('div');
+        tag.className = "inline-flex items-center space-x-1.5 px-2.5 py-1 bg-surface border border-line rounded-lg text-xs font-semibold text-ink-900 shadow-sm";
+        tag.innerHTML = `
+          <span class="w-2 h-2 rounded-full" style="background-color: ${color}"></span>
+          <span>${sym}</span>
+          <span class="text-[9px] px-1 py-0.2 rounded ${typeBadgeClass} font-semibold">
+            ${isCrypto ? '⚡ CRYPTO' : stock.type}
+          </span>
+          <span class="text-[9px] px-1 py-0.2 rounded ${isAUD ? 'bg-amber-100 text-amber-800' : 'bg-line text-ink-500'} font-mono">${stock.currency}</span>
+          <button onclick="removeStock('${sym}')" class="text-ink-300 hover:text-ink-700 transition ml-0.5" title="Remove">
+            <i data-lucide="x" class="w-3 h-3"></i>
+          </button>
+        `;
+        container.appendChild(tag);
+      });
+      lucide.createIcons();
+    }
+
+    function addStock(symbol) {
+      const sym = symbol.toUpperCase().trim();
+      if (!sym) return;
+      if (app.selected.includes(sym)) {
+        showToast(`${sym} is already in the comparison`);
+        return;
+      }
+      if (app.selected.length >= 8) {
+        showToast("Maximum 8 assets for clear comparison");
+        return;
+      }
+      app.selected.push(sym);
+      
+      // If adding crypto into equities while in Price mode, auto switch to percent return for normalized clarity
+      const isCrypto = getStock(sym).type === 'CRYPTO';
+      const hasEquities = app.selected.some(s => getStock(s).type !== 'CRYPTO');
+      if (isCrypto && hasEquities && app.scaleMode === 'price') {
+        setScaleMode('percent');
+        showToast(`Auto-switched to % Return (Normalized) for crypto comparison`);
+      }
+
+      renderStockTags();
+      renderChart();
+      showToast(`Added ${sym}`);
+    }
+
+    function removeStock(symbol) {
+      if (app.selected.length <= 1) {
+        showToast("Keep at least 1 asset selected");
+        return;
+      }
+      app.selected = app.selected.filter(s => s !== symbol);
+      renderStockTags();
+      renderChart();
+      showToast(`Removed ${symbol}`);
+    }
+
+    function loadPresetBasket(type) {
+      if (type === 'popular_mix') {
+        app.selected = ["NVDA", "AAPL", "DFND", "BTC"];
+        setScaleMode('percent');
+        showToast("Loaded Core Mix (Tech, Blue-chip, ETF & Bitcoin)");
+      } else if (type === 'crypto_major') {
+        app.selected = ["BTC", "ETH", "SOL"];
+        setScaleMode('percent');
+        showToast("Loaded Major Cryptocurrencies (BTC, ETH, SOL)");
+      } else if (type === 'crypto_tech') {
+        app.selected = ["NVDA", "BTC", "PLTR", "ETH"];
+        setScaleMode('percent');
+        showToast("Loaded Tech & Crypto Outperformers");
+      } else if (type === 'us_tech') {
+        app.selected = ["NVDA", "MSFT", "PLTR", "AMD"];
+        showToast("Loaded US Tech & AI Stocks");
+      } else if (type === 'asx_etfs') {
+        app.selected = ["DFND", "SEMI", "VEU", "NDQ"];
+        showToast("Loaded Australian ASX Thematic ETFs");
+      } else if (type === 'asx_stocks') {
+        app.selected = ["CSL", "BHP", "CBA", "WES"];
+        showToast("Loaded Australian Blue-Chip Equities");
+      } else if (type === 'broad_etfs') {
+        app.selected = ["IVV", "SPY", "QQQ", "VAS"];
+        showToast("Loaded Global Index ETFs");
+      }
+      renderStockTags();
+      renderChart();
+    }
+
+    // -------------------------------------------------------------
+    // 6. ENHANCED SEARCH WITH CRYPTO, ETF & STOCK FILTER TABS
+    // -------------------------------------------------------------
+    const searchInput = document.getElementById('tickerSearch');
+    const searchDropdown = document.getElementById('searchDropdown');
+    const searchScrollArea = document.getElementById('searchScrollArea');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+
+    // Default trending tickers shown on empty focus
+    const TRENDING_TICKERS = [
+      "BTC", "ETH", "SOL", "NVDA", "AAPL", "MSFT", "PLTR", "DFND", "SEMI", "CSL", "BHP", "CBA", "IVV"
+    ];
+
+    function setSearchFilter(filter, el) {
+      app.searchFilter = filter;
+      document.querySelectorAll('.search-filter-tab').forEach(t => {
+        t.className = "search-filter-tab px-2.5 py-1 rounded-md font-medium text-ink-500 hover:text-ink-900 transition whitespace-nowrap";
+      });
+      el.className = "search-filter-tab px-2.5 py-1 rounded-md font-semibold bg-ink-900 text-white transition whitespace-nowrap";
+
+      const q = searchInput.value;
+      const results = getSearchResults(q);
+      renderDropdown(results, q);
+    }
+
+    function getSearchResults(query) {
+      const q = query.trim().toUpperCase();
+      let allKeys = Object.keys(STOCK_SPECS);
+
+      // Apply category filter
+      if (app.searchFilter === 'stock') {
+        allKeys = allKeys.filter(k => STOCK_SPECS[k].type === 'STOCK');
+      } else if (app.searchFilter === 'etf') {
+        allKeys = allKeys.filter(k => STOCK_SPECS[k].type === 'ETF');
+      } else if (app.searchFilter === 'crypto') {
+        allKeys = allKeys.filter(k => STOCK_SPECS[k].type === 'CRYPTO');
+      } else if (app.searchFilter === 'asx') {
+        allKeys = allKeys.filter(k => STOCK_SPECS[k].region === 'ASX');
+      } else if (app.searchFilter === 'us') {
+        allKeys = allKeys.filter(k => STOCK_SPECS[k].region === 'US');
+      }
+
+      if (!q) {
+        // Return matching items from trending list
+        const trendingMatches = allKeys.filter(k => TRENDING_TICKERS.includes(k));
+        const rest = allKeys.filter(k => !TRENDING_TICKERS.includes(k));
+        return [...trendingMatches, ...rest].map(k => ({ sym: k, ...STOCK_SPECS[k] }));
+      }
+
+      // Filter by symbol, name, or sector
+      const results = allKeys.filter(k => {
+        const spec = STOCK_SPECS[k];
+        return k.includes(q) || 
+               spec.name.toUpperCase().includes(q) || 
+               spec.sector.toUpperCase().includes(q);
+      }).map(k => ({ sym: k, ...STOCK_SPECS[k] }));
+
+      // Ranked relevance
+      results.sort((a, b) => {
+        if (a.sym === q) return -1;
+        if (b.sym === q) return 1;
+        if (a.sym.startsWith(q) && !b.sym.startsWith(q)) return -1;
+        if (!a.sym.startsWith(q) && b.sym.startsWith(q)) return 1;
+        return 0;
+      });
+
+      return results;
+    }
+
+    function renderDropdown(items, query) {
+      app.currentDropdownItems = items;
+      app.searchSelectedIndex = -1;
+
+      if (items.length === 0) {
+        const raw = query.toUpperCase().trim();
+        searchScrollArea.innerHTML = `
+          <div class="px-4 py-4 text-xs text-ink-500">
+            <p>No exact match in this tab for "<strong>${query}</strong>".</p>
+            <div onclick="addStock('${raw}'); clearSearch();" class="mt-2.5 px-3 py-2 bg-canvas hover:bg-line border border-line rounded-lg cursor-pointer flex items-center justify-between transition text-ink-900 font-semibold">
+              <span class="flex items-center gap-1.5">
+                <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                Track &amp; synthesize <strong>${raw}</strong>
+              </span>
+              <span class="text-[11px] text-ink-500 font-mono">Press Enter</span>
+            </div>
+          </div>
+        `;
+        searchDropdown.classList.remove('hidden');
+        lucide.createIcons();
+        return;
+      }
+
+      let html = '';
+      items.forEach((item, idx) => {
+        const isSelected = app.selected.includes(item.sym);
+        const price = STOCK_DATABASE[item.sym] ? STOCK_DATABASE[item.sym].currentPrice : item.milestones[item.milestones.length - 1].price;
+        const formattedPrice = formatAssetPrice(price, item.currency);
+        const isCrypto = item.type === 'CRYPTO';
+        const isAUD = item.currency === 'AUD';
+
+        let badgeTypeStyle = "bg-blue-100 text-blue-900";
+        if (item.type === 'ETF') badgeTypeStyle = "bg-purple-100 text-purple-900";
+        if (isCrypto) badgeTypeStyle = "bg-amber-100 text-amber-900";
+
+        let badgeColor = "text-gain bg-emerald-50 border-emerald-200";
+        if (item.consensus.includes("Hold")) badgeColor = "text-ink-700 bg-canvas border-line";
+        if (item.consensus.includes("Underperform")) badgeColor = "text-loss bg-rose-50 border-rose-200";
+
+        html += `
+          <div 
+            id="search-item-${idx}"
+            onclick="handleSelectStock('${item.sym}')"
+            class="search-item px-3.5 py-2.5 hover:bg-canvas cursor-pointer flex items-center justify-between transition group ${isSelected ? 'bg-canvas/50' : ''}"
+          >
+            <div class="flex items-center space-x-2.5 min-w-0">
+              <div class="w-7 h-7 rounded-lg ${badgeTypeStyle} flex items-center justify-center font-bold text-[10px] shrink-0">
+                ${isCrypto ? '⚡' : (item.type === 'ETF' ? 'ETF' : 'STK')}
+              </div>
+              <div class="truncate">
+                <div class="flex items-center space-x-1.5">
+                  <span class="font-bold text-xs text-ink-900">${item.sym}</span>
+                  <span class="text-[9px] font-bold px-1.5 py-0.2 rounded border ${isAUD ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-surface text-ink-700 border-line'}">${item.currency}</span>
+                  <span class="text-[9px] px-1.5 py-0.2 rounded border bg-surface text-ink-500 font-medium">${item.sector}</span>
+                </div>
+                <span class="text-[11px] text-ink-500 block truncate">${item.name}</span>
+              </div>
+            </div>
+
+            <div class="text-right shrink-0 ml-2 flex items-center space-x-2">
+              <div>
+                <span class="font-bold text-xs text-ink-900">${formattedPrice}</span>
+                <span class="block text-[9px] px-1.5 py-0.2 rounded border font-semibold ${badgeColor}">${item.consensus}</span>
+              </div>
+              ${isSelected ? `<span class="text-gain"><i data-lucide="check" class="w-4 h-4"></i></span>` : `<span class="opacity-0 group-hover:opacity-100 text-ink-500"><i data-lucide="plus" class="w-4 h-4"></i></span>`}
+            </div>
+          </div>
+        `;
+      });
+
+      searchScrollArea.innerHTML = html;
+      searchDropdown.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function handleSelectStock(symbol) {
+      if (app.selected.includes(symbol)) {
+        removeStock(symbol);
+      } else {
+        addStock(symbol);
+      }
+      clearSearch();
+    }
+
+    function clearSearch() {
+      searchInput.value = '';
+      searchDropdown.classList.add('hidden');
+      clearSearchBtn.classList.add('hidden');
+      app.searchSelectedIndex = -1;
+    }
+
+    searchInput.addEventListener('focus', () => {
+      const q = searchInput.value;
+      const results = getSearchResults(q);
+      renderDropdown(results, q);
+      if (q) clearSearchBtn.classList.remove('hidden');
+    });
+
+    searchInput.addEventListener('input', (e) => {
+      const q = e.target.value;
+      if (q.trim()) {
+        clearSearchBtn.classList.remove('hidden');
+      } else {
+        clearSearchBtn.classList.add('hidden');
+      }
+      const results = getSearchResults(q);
+      renderDropdown(results, q);
+    });
+
+    // Keyboard navigation
+    searchInput.addEventListener('keydown', (e) => {
+      if (searchDropdown.classList.contains('hidden')) return;
+
+      const items = document.querySelectorAll('.search-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        app.searchSelectedIndex = Math.min(items.length - 1, app.searchSelectedIndex + 1);
+        highlightSelectedItem(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        app.searchSelectedIndex = Math.max(0, app.searchSelectedIndex - 1);
+        highlightSelectedItem(items);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (app.searchSelectedIndex >= 0 && app.currentDropdownItems[app.searchSelectedIndex]) {
+          handleSelectStock(app.currentDropdownItems[app.searchSelectedIndex].sym);
+        } else if (searchInput.value.trim()) {
+          const topMatch = app.currentDropdownItems[0];
+          if (topMatch) {
+            handleSelectStock(topMatch.sym);
+          } else {
+            addStock(searchInput.value.trim());
+            clearSearch();
+          }
+        }
+      } else if (e.key === 'Escape') {
+        clearSearch();
+      }
+    });
+
+    function highlightSelectedItem(items) {
+      items.forEach((it, idx) => {
+        if (idx === app.searchSelectedIndex) {
+          it.classList.add('bg-canvas');
+          it.scrollIntoView({ block: 'nearest' });
+        } else {
+          it.classList.remove('bg-canvas');
+        }
+      });
+    }
+
+    document.addEventListener('click', (e) => {
+      const searchContainer = document.getElementById('searchContainer');
+      if (!searchContainer.contains(e.target)) {
+        searchDropdown.classList.add('hidden');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== searchInput) {
+        e.preventDefault();
+        searchInput.focus();
+      }
+    });
+
+    // -------------------------------------------------------------
+    // 7. DUAL-THUMB TIMELINE SLIDER
+    // -------------------------------------------------------------
+    const sliderLeft = document.getElementById('sliderLeft');
+    const sliderRight = document.getElementById('sliderRight');
+    const sliderFill = document.getElementById('sliderFill');
+
+    function syncSlider(e) {
+      let minVal = parseInt(sliderLeft.value);
+      let maxVal = parseInt(sliderRight.value);
+      const minGap = 10;
+
+      if (e && e.target === sliderLeft) {
+        if (minVal >= maxVal - minGap) {
+          minVal = maxVal - minGap;
+          sliderLeft.value = minVal;
+        }
+      } else if (e && e.target === sliderRight) {
+        if (maxVal <= minVal + minGap) {
+          maxVal = minVal + minGap;
+          sliderRight.value = maxVal;
+        }
+      }
+
+      const total = HISTORICAL_TOTAL - 1;
+      const minPct = (minVal / total) * 100;
+      const maxPct = (maxVal / total) * 100;
+
+      sliderFill.style.left = `${minPct}%`;
+      sliderFill.style.width = `${maxPct - minPct}%`;
+
+      app.sliderMin = minVal;
+      app.sliderMax = maxVal;
+      renderChart();
+    }
+
+    sliderLeft.addEventListener('input', syncSlider);
+    sliderRight.addEventListener('input', syncSlider);
+
+    function setPresetHorizon(sessions, el) {
+      document.querySelectorAll('.horizon-chip').forEach(b => {
+        b.className = "horizon-chip px-2.5 py-1 text-xs font-medium rounded-md text-ink-500 hover:text-ink-900 transition";
+      });
+      el.className = "horizon-chip active px-2.5 py-1 text-xs font-semibold rounded-md bg-ink-900 text-white transition";
+
+      sliderRight.value = HISTORICAL_TOTAL - 1;
+      if (sessions === 'ALL') {
+        sliderLeft.value = 0;
+      } else {
+        sliderLeft.value = Math.max(0, (HISTORICAL_TOTAL - 1) - sessions);
+      }
+      syncSlider();
+    }
+
+    function setScaleMode(mode) {
+      app.scaleMode = mode;
+      const btnP = document.getElementById('togglePercent');
+      const btnD = document.getElementById('togglePrice');
+
+      if (mode === 'percent') {
+        btnP.className = "px-3 py-1 text-xs font-semibold rounded-md bg-surface text-ink-900 shadow-sm transition";
+        btnD.className = "px-3 py-1 text-xs font-medium rounded-md text-ink-500 hover:text-ink-900 transition";
+      } else {
+        btnD.className = "px-3 py-1 text-xs font-semibold rounded-md bg-surface text-ink-900 shadow-sm transition";
+        btnP.className = "px-3 py-1 text-xs font-medium rounded-md text-ink-500 hover:text-ink-900 transition";
+      }
+      renderChart();
+    }
+
+    function toggleForecast() {
+      app.showForecast = !app.showForecast;
+      const btn = document.getElementById('forecastToggleBtn');
+      const dot = document.getElementById('forecastIndicatorDot');
+      const banner = document.getElementById('forecastBanner');
+
+      if (app.showForecast) {
+        btn.className = "inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-semibold border border-ink-900 bg-ink-900 text-white shadow-sm transition";
+        dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+        banner.classList.remove('hidden');
+        showToast("12M Forward Targets Projected on Chart");
+      } else {
+        btn.className = "inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg text-xs font-semibold border border-line bg-canvas text-ink-700 hover:border-ink-900 transition";
+        dot.className = "w-2 h-2 rounded-full bg-lineDark";
+        banner.classList.add('hidden');
+      }
+
+      renderChart();
+      lucide.createIcons();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      toastMsg.innerText = msg;
+      toast.classList.remove('opacity-0', 'translate-y-3');
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-3');
+      }, 2000);
+    }
+
+    // -------------------------------------------------------------
+    // INITIALIZATION
+    // -------------------------------------------------------------
+    window.addEventListener('load', () => {
+      sliderLeft.max = HISTORICAL_TOTAL - 1;
+      sliderRight.max = HISTORICAL_TOTAL - 1;
+      sliderLeft.value = 0;
+      sliderRight.value = HISTORICAL_TOTAL - 1;
+
+      renderStockTags();
+      syncSlider();
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
