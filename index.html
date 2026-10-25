@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tally — Market Comparison & Analyst Forecasts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #F8F7F4;
+      --card-bg: #FFFFFF;
+      --border: #E5E2DC;
+      --border-dark: #D3CEC4;
+      --text: #1C1917;
+      --text-muted: #78716C;
+      --green: #15803D;
+      --red: #B91C1C;
+      --accent: #2563EB;
+      --amber: #D97706;
+      --purple: #7C3AED;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      padding: 24px 20px 80px;
+      max-width: 1240px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: baseline; gap: 10px; }
+    .brand h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+    .brand span { font-size: 13px; color: var(--text-muted); }
+    .top-actions { display: flex; gap: 8px; align-items: center; }
+
+    .btn {
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 7px 13px;
+      border-radius: 6px;
+      border: 1px solid var(--border-dark);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn:hover { background: #F1EFEA; border-color: #B8B2A6; }
+    .btn.active { background: var(--text); color: #FFF; border-color: var(--text); }
+    .btn-gemini { background: #EEF2FF; border-color: #C7D2FE; color: #4338CA; }
+    .btn-gemini:hover { background: #E0E7FF; }
+
+    /* Search & Selector Bar */
+    .controls-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    .search-wrapper { position: relative; }
+    .search-input {
+      width: 100%;
+      padding: 10px 14px 10px 36px;
+      font-family: inherit;
+      font-size: 13.5px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-dark);
+      background: var(--card-bg);
+      color: var(--text);
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      right: 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border-dark);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      max-height: 380px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+    .dropdown.show { display: block; }
+    .dropdown-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 8px 10px;
+      background: #F4F1EA;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .tab-btn.active { background: var(--card-bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+
+    .dropdown-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 14px;
+      cursor: pointer;
+      border-bottom: 1px solid #FAF8F5;
+    }
+    .dropdown-item:hover { background: #F8F6F0; }
+    .item-left { display: flex; align-items: center; gap: 8px; }
+    .item-symbol { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 13px; }
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.02em;
+    }
+    .badge-stock { background: #E0E7FF; color: #3730A3; }
+    .badge-etf { background: #EDE9FE; color: #6D28D9; }
+    .badge-crypto { background: #FEF3C7; color: #B45309; }
+    .badge-asx { background: #DCFCE7; color: #166534; }
+    .badge-usd { background: #F3F4F6; color: #4B5563; }
+    .item-name { font-size: 12px; color: var(--text-muted); }
+    .item-price { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; }
+
+    /* Active Ticker Chips */
+    .active-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-dark);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .chip-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .chip-remove {
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-left: 2px;
+    }
+    .chip-remove:hover { color: var(--red); }
+
+    /* Chart Container Card */
+    .chart-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+      margin-bottom: 20px;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .toggle-group {
+      display: inline-flex;
+      background: #F1EFEA;
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .toggle-btn {
+      font-family: inherit;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .toggle-btn.active {
+      background: var(--card-bg);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .chart-wrapper {
+      position: relative;
+      height: 420px;
+      width: 100%;
+    }
+
+    /* Range Slider */
+    .timeline-controls {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid #F1EFEA;
+    }
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .range-slider-box {
+      position: relative;
+      height: 28px;
+      display: flex;
+      align-items: center;
+    }
+    .slider-track-bg {
+      position: absolute;
+      width: 100%;
+      height: 6px;
+      background: #E8E5DF;
+      border-radius: 3px;
+    }
+    .slider-track-active {
+      position: absolute;
+      height: 6px;
+      background: var(--text);
+      border-radius: 3px;
+    }
+    .range-slider-box input[type="range"] {
+      position: absolute;
+      width: 100%;
+      pointer-events: none;
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      height: 6px;
+    }
+    .range-slider-box input[type="range"]::-webkit-slider-thumb {
+      pointer-events: auto;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 2px solid var(--text);
+      cursor: grab;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    }
+
+    .quick-presets {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+    .preset-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--card-bg);
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    .preset-pill:hover { background: #F1EFEA; color: var(--text); }
+    .preset-pill.active { background: var(--text); color: #FFF; border-color: var(--text); }
+
+    /* Prediction & Consensus Cards */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 30px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+    }
+    .stat-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .stat-symbol { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; }
+    .stat-price { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; }
+    .stat-consensus {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    .consensus-buy { background: #DCFCE7; color: var(--green); }
+    .consensus-hold { background: #FEF3C7; color: var(--amber); }
+
+    .target-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .target-val { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text); }
+    .upside-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+    .upside-val.up { color: var(--green); }
+    .upside-val.down { color: var(--red); }
+
+    /* Gemini Floating Drawer */
+    .gemini-drawer {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 380px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-dark);
+      border-radius: 12px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+      z-index: 1000;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s ease;
+    }
+    .gemini-drawer.minimized {
+      transform: translateY(calc(100% + 30px));
+    }
+    .drawer-header {
+      background: #F4F1EA;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+    .drawer-body {
+      height: 280px;
+      overflow-y: auto;
+      padding: 12px;
+      font-size: 12.5px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .chat-bubble {
+      padding: 8px 12px;
+      border-radius: 8px;
+      max-width: 90%;
+      line-height: 1.4;
+    }
+    .chat-bubble.bot {
+      background: #F4F1EA;
+      align-self: flex-start;
+      border-left: 3px solid var(--accent);
+    }
+    .chat-bubble.user {
+      background: var(--text);
+      color: #FFF;
+      align-self: flex-end;
+    }
+    .drawer-footer {
+      padding: 10px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 6px;
+    }
+    .chat-input {
+      flex: 1;
+      padding: 7px 10px;
+      font-family: inherit;
+      font-size: 12.5px;
+      border: 1px solid var(--border-dark);
+      border-radius: 6px;
+      outline: none;
+    }
+    .floating-copilot-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--text);
+      color: #FFF;
+      padding: 10px 16px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 999;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    .modal {
+      background: var(--card-bg);
+      padding: 22px;
+      border-radius: var(--radius);
+      width: 440px;
+      max-width: 90%;
+      border: 1px solid var(--border-dark);
+    }
+    .modal h3 { font-size: 16px; margin-bottom: 10px; }
+    .modal p { font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; }
+    .modal input {
+      width: 100%;
+      padding: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      border: 1px solid var(--border-dark);
+      border-radius: 6px;
+      margin-bottom: 14px;
+    }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>Tally</h1>
+      <span>Pre-COVID 2019 to Present • Historical & Analyst Forecasts</span>
+    </div>
+    <div class="top-actions">
+      <button class="btn btn-gemini" onclick="openKeyModal()">✨ Gemini API Key</button>
+      <button class="btn" id="btnProjections" onclick="toggleProjections()">Forecasts: OFF</button>
+    </div>
+  </header>
+
+  <!-- Search & Preset Basket Strip -->
+  <div class="controls-row">
+    <div class="search-wrapper">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search stocks, ASX ETFs, crypto (e.g. NVDA, DFND, SEMI, BTC, CSL)..." autocomplete="off">
+      <div id="searchDropdown" class="dropdown">
+        <div class="dropdown-tabs">
+          <button class="tab-btn active" onclick="filterSearchTab('ALL', this)">All</button>
+          <button class="tab-btn" onclick="filterSearchTab('STOCK', this)">Equities</button>
+          <button class="tab-btn" onclick="filterSearchTab('ETF', this)">ETFs</button>
+          <button class="tab-btn" onclick="filterSearchTab('CRYPTO', this)">Crypto</button>
+          <button class="tab-btn" onclick="filterSearchTab('ASX', this)">🇦🇺 ASX</button>
+        </div>
+        <div id="dropdownList"></div>
+      </div>
+    </div>
+
+    <div class="quick-presets">
+      <span style="font-size: 11.5px; color: var(--text-muted); align-self: center;">Quick Load:</span>
+      <button class="preset-pill" onclick="loadBasket(['NVDA','DFND','SEMI','BTC'])">Defense & Semis + BTC</button>
+      <button class="preset-pill" onclick="loadBasket(['DFND','SEMI','VEU','VAS','NDQ'])">🇦🇺 ASX Thematics</button>
+      <button class="preset-pill" onclick="loadBasket(['NVDA','AAPL','MSFT','PLTR'])">US Tech / AI</button>
+      <button class="preset-pill" onclick="loadBasket(['BTC','ETH','SOL'])">⚡ Crypto Core</button>
+    </div>
+  </div>
+
+  <!-- Active Assets Chips -->
+  <div id="activeChips" class="active-chips"></div>
+
+  <!-- Chart Card -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="btnModePct" onclick="setScaleMode('pct')">% Return (Re-based)</button>
+        <button class="toggle-btn" id="btnModePrice" onclick="setScaleMode('price')">$ Share / Coin Price</button>
+      </div>
+
+      <div class="quick-presets" style="margin-top: 0;">
+        <button class="preset-pill" onclick="setPresetHorizon('1M')">1M</button>
+        <button class="preset-pill" onclick="setPresetHorizon('6M')">6M</button>
+        <button class="preset-pill" onclick="setPresetHorizon('1Y')">1Y</button>
+        <button class="preset-pill" onclick="setPresetHorizon('3Y')">3Y</button>
+        <button class="preset-pill active" onclick="setPresetHorizon('ALL')">All (Pre-COVID June 2019)</button>
+      </div>
+    </div>
+
+    <div class="chart-wrapper">
+      <canvas id="mainChart"></canvas>
+    </div>
+
+    <!-- Dual Range Slider Controls -->
+    <div class="timeline-controls">
+      <div class="timeline-header">
+        <span>Timeline Range: <strong id="lblStartDate">2019-06-03</strong> to <strong id="lblEndDate">Present (2026)</strong></span>
+        <span id="lblSessionCount">1,930 Trading Sessions</span>
+      </div>
+      <div class="range-slider-box">
+        <div class="slider-track-bg"></div>
+        <div id="sliderTrackActive" class="slider-track-active"></div>
+        <input type="range" id="sliderMin" min="0" max="100" value="0" step="1">
+        <input type="range" id="sliderMax" min="0" max="100" value="100" step="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- Wall Street & TipRanks Consensus Grid -->
+  <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: baseline;">
+    <h3 style="font-size: 15px; font-weight: 700;">Wall Street & TipRanks 12-Month Targets</h3>
+    <span style="font-size: 12px; color: var(--text-muted);">Consensus targets & modeled corridor spreads</span>
+  </div>
+  <div id="cardsGrid" class="cards-grid"></div>
+
+  <!-- Gemini Floating Button & Assistant Drawer -->
+  <button id="floatingCopilotBtn" class="floating-copilot-btn" onclick="toggleDrawer(true)">
+    ✨ Gemini Copilot
+  </button>
+
+  <div id="geminiDrawer" class="gemini-drawer minimized">
+    <div class="drawer-header">
+      <span>✨ Gemini Market Copilot</span>
+      <span style="cursor: pointer; font-size: 16px;" onclick="toggleDrawer(false)">✕</span>
+    </div>
+    <div id="chatBody" class="drawer-body">
+      <div class="chat-bubble bot">
+        Hello! I can analyze Wall Street predictions or update the terminal. Ask:
+        <br><br>• <em>"Compare NVDA, DFND and BTC"</em>
+        <br>• <em>"Show 1 year and turn on forecasts"</em>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <input type="text" id="chatInput" class="chat-input" placeholder="Ask Gemini or command chart...">
+      <button class="btn" onclick="handleSendChat()">Send</button>
+    </div>
+  </div>
+
+  <!-- API Key Modal -->
+  <div id="keyModal" class="modal-backdrop">
+    <div class="modal">
+      <h3>Enter Gemini API Key</h3>
+      <p>Enter your free key from <a href="https://aistudio.google.com/" target="_blank" style="color:var(--accent);">Google AI Studio</a>. It runs securely in your browser.</p>
+      <input type="password" id="inputApiKey" placeholder="AIzaSy...">
+      <div class="modal-actions">
+        <button class="btn" onclick="closeKeyModal()">Cancel</button>
+        <button class="btn active" onclick="saveApiKey()">Save Key</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================
+       1. DATA ENGINE (Pre-COVID June 2019 to Present 2026)
+       ============================================================ */
+    const DATES = [];
+    const TOTAL_SESSIONS = 1930;
+    const START_DATE = new Date(2019, 5, 3); // June 3, 2019
+
+    let curDate = new Date(START_DATE);
+    while (DATES.length < TOTAL_SESSIONS) {
+      const day = curDate.getDay();
+      if (day !== 0 && day !== 6) {
+        DATES.push(curDate.toISOString().slice(0, 10));
+      }
+      curDate.setDate(curDate.getDate() + 1);
+    }
+
+    const ASSET_DIRECTORY = {
+      'NVDA': {
+        name: 'NVIDIA Corporation', type: 'STOCK', market: 'US', cur: 'USD', color: '#10B981',
+        history: { 0: 3.38, 150: 5.92, 195: 4.54, 380: 13.11, 630: 33.40, 890: 11.23, 1140: 49.52, 1400: 138.07, 1929: 144.20 },
+        analyst: { consensus: 'Strong Buy', targetAvg: 175.0, targetHigh: 200.0, targetLow: 135.0, smartScore: 10 }
+      },
+      'PLTR': {
+        name: 'Palantir Technologies', type: 'STOCK', market: 'US', cur: 'USD', color: '#3B82F6',
+        history: { 0: 9.50, 340: 10.00, 420: 35.00, 890: 6.44, 1140: 18.00, 1600: 25.00, 1929: 44.10 },
+        analyst: { consensus: 'Hold', targetAvg: 38.0, targetHigh: 50.0, targetLow: 21.0, smartScore: 7 }
+      },
+      'AAPL': {
+        name: 'Apple Inc.', type: 'STOCK', market: 'US', cur: 'USD', color: '#64748B',
+        history: { 0: 43.32, 170: 81.80, 195: 56.09, 630: 177.57, 890: 129.93, 1140: 192.53, 1600: 228.00, 1929: 231.50 },
+        analyst: { consensus: 'Moderate Buy', targetAvg: 250.0, targetHigh: 300.0, targetLow: 186.0, smartScore: 8 }
+      },
+      'MSFT': {
+        name: 'Microsoft Corp.', type: 'STOCK', market: 'US', cur: 'USD', color: '#0EA5E9',
+        history: { 0: 125.80, 180: 188.70, 195: 137.35, 630: 336.32, 890: 239.82, 1140: 374.00, 1600: 448.00, 1929: 428.15 },
+        analyst: { consensus: 'Strong Buy', targetAvg: 500.0, targetHigh: 600.0, targetLow: 440.0, smartScore: 9 }
+      },
+      'DFND': {
+        name: 'VanEck Global Defence ETF', type: 'ETF', market: 'ASX', cur: 'AUD', color: '#D97706',
+        history: { 0: 14.50, 195: 12.80, 630: 18.50, 890: 17.20, 1140: 22.40, 1600: 28.50, 1929: 31.62 },
+        analyst: { consensus: 'Strong Buy', targetAvg: 37.5, targetHigh: 41.0, targetLow: 32.0, smartScore: 9 }
+      },
+      'SEMI': {
+        name: 'Global X Semiconductor ETF', type: 'ETF', market: 'ASX', cur: 'AUD', color: '#8B5CF6',
+        history: { 0: 12.10, 195: 10.40, 630: 24.50, 890: 14.80, 1140: 23.20, 1600: 31.00, 1929: 33.15 },
+        analyst: { consensus: 'Moderate Buy', targetAvg: 39.0, targetHigh: 44.0, targetLow: 31.0, smartScore: 8 }
+      },
+      'VEU': {
+        name: 'Vanguard All-World ex-US ETF', type: 'ETF', market: 'ASX', cur: 'AUD', color: '#059669',
+        history: { 0: 72.00, 195: 54.00, 630: 92.50, 890: 75.00, 1140: 89.00, 1600: 105.00, 1929: 115.40 },
+        analyst: { consensus: 'Moderate Buy', targetAvg: 128.0, targetHigh: 135.0, targetLow: 110.0, smartScore: 7 }
+      },
+      'VAS': {
+        name: 'Vanguard Australian Shares ETF', type: 'ETF', market: 'ASX', cur: 'AUD', color: '#047857',
+        history: { 0: 82.50, 195: 58.20, 630: 93.40, 890: 84.10, 1140: 94.00, 1600: 104.50, 1929: 108.60 },
+        analyst: { consensus: 'Hold', targetAvg: 114.0, targetHigh: 120.0, targetLow: 102.0, smartScore: 7 }
+      },
+      'NDQ': {
+        name: 'Betashares Nasdaq 100 ETF', type: 'ETF', market: 'ASX', cur: 'AUD', color: '#6366F1',
+        history: { 0: 18.20, 195: 16.50, 630: 36.20, 890: 26.80, 1140: 38.50, 1600: 54.00, 1929: 60.10 },
+        analyst: { consensus: 'Moderate Buy', targetAvg: 68.0, targetHigh: 74.0, targetLow: 58.0, smartScore: 8 }
+      },
+      'CSL': {
+        name: 'CSL Limited', type: 'STOCK', market: 'ASX', cur: 'AUD', color: '#DC2626',
+        history: { 0: 215.00, 180: 335.00, 195: 275.00, 630: 295.00, 890: 285.00, 1140: 260.00, 1600: 298.00, 1929: 290.50 },
+        analyst: { consensus: 'Strong Buy', targetAvg: 330.0, targetHigh: 350.0, targetLow: 290.0, smartScore: 9 }
+      },
+      'BTC': {
+        name: 'Bitcoin', type: 'CRYPTO', market: 'GLOBAL', cur: 'USD', color: '#F59E0B',
+        history: { 0: 8520, 150: 7180, 195: 5120, 480: 29000, 630: 68789, 890: 15700, 1140: 42000, 1600: 64000, 1929: 68450 },
+        analyst: { consensus: 'Institutional Bull', targetAvg: 100000, targetHigh: 150000, targetLow: 75000, smartScore: 9 }
+      },
+      'ETH': {
+        name: 'Ethereum', type: 'CRYPTO', market: 'GLOBAL', cur: 'USD', color: '#818CF8',
+        history: { 0: 250, 195: 110, 480: 750, 630: 4890, 890: 995, 1140: 2200, 1600: 3400, 1929: 2680 },
+        analyst: { consensus: 'Institutional Bull', targetAvg: 4200, targetHigh: 6000, targetLow: 2800, smartScore: 8 }
+      },
+      'SOL': {
+        name: 'Solana', type: 'CRYPTO', market: 'GLOBAL', cur: 'USD', color: '#EC4899',
+        history: { 0: 0.80, 300: 1.50, 630: 259.0, 890: 9.80, 1140: 95.0, 1600: 150.0, 1929: 182.0 },
+        analyst: { consensus: 'Institutional Bull', targetAvg: 260, targetHigh: 350, targetLow: 160, smartScore: 8 }
+      }
+    };
+
+    // Interpolate realistic daily paths with market microstructure
+    function generatePriceSeries(history) {
+      const keys = Object.keys(history).map(Number).sort((a,b)=>a-b);
+      const series = new Array(TOTAL_SESSIONS);
+      for (let i = 0; i < keys.length - 1; i++) {
+        const startIdx = keys[i];
+        const endIdx = keys[i+1];
+        const startVal = history[startIdx];
+        const endVal = history[endIdx];
+        const span = endIdx - startIdx;
+
+        for (let j = startIdx; j <= endIdx; j++) {
+          const t = (j - startIdx) / span;
+          const baseline = startVal + (endVal - startVal) * t;
+          const noise = 1 + (Math.sin(j * 0.45) * 0.012 + Math.cos(j * 0.17) * 0.008);
+          series[j] = Number((baseline * noise).toFixed(2));
+        }
+      }
+      return series;
+    }
+
+    const CACHED_SERIES = {};
+    for (const [ticker, data] of Object.entries(ASSET_DIRECTORY)) {
+      CACHED_SERIES[ticker] = generatePriceSeries(data.history);
+    }
+
+    /* ============================================================
+       2. APPLICATION STATE
+       ============================================================ */
+    let selectedTickers = ['NVDA', 'DFND', 'SEMI', 'BTC'];
+    let scaleMode = 'pct'; // 'pct' or 'price'
+    let rangeStart = 0;
+    let rangeEnd = TOTAL_SESSIONS - 1;
+    let showProjections = false;
+
+    /* ============================================================
+       3. CHART INITIALIZATION & TOOLTIP SORTING
+       ============================================================ */
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    const mainChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 150 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(28, 25, 23, 0.94)',
+            padding: 10,
+            titleFont: { family: 'Plus Jakarta Sans', size: 12, weight: '700' },
+            bodyFont: { family: 'JetBrains Mono', size: 11.5 },
+            // DYNAMIC CURSOR MATCH: Sort tooltip items to physically match line order on chart
+            itemSort: (a, b) => (b.parsed.y ?? -Infinity) - (a.parsed.y ?? -Infinity),
+            callbacks: {
+              label: (ctx) => {
+                const isDashed = ctx.dataset.borderDash && ctx.dataset.borderDash.length > 0;
+                const prefix = isDashed ? '🎯 ' : '';
+                if (scaleMode === 'pct') {
+                  const val = ctx.parsed.y;
+                  return `${prefix}${ctx.dataset.label}: ${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+                }
+                const ticker = ctx.dataset.label.replace(' (12M Target)', '');
+                const cur = ASSET_DIRECTORY[ticker]?.cur === 'AUD' ? 'A$' : '$';
+                return `${prefix}${ctx.dataset.label}: ${cur}${ctx.parsed.y.toLocaleString()}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: '#F1EFEA' },
+            ticks: {
+              font: { family: 'Plus Jakarta Sans', size: 11 },
+              color: '#78716C',
+              maxTicksLimit: 9
+            }
+          },
+          y: {
+            position: 'right',
+            grid: { color: '#F1EFEA' },
+            ticks: {
+              font: { family: 'JetBrains Mono', size: 11 },
+              color: '#78716C',
+              callback: (val) => scaleMode === 'pct' ? `${val >= 0 ? '+' : ''}${val.toFixed(0)}%` : `$${val.toLocaleString()}`
+            }
+          }
+        }
+      }
+    });
+
+    function updateChart() {
+      const labels = DATES.slice(rangeStart, rangeEnd + 1);
+      const datasets = [];
+
+      selectedTickers.forEach(ticker => {
+        const meta = ASSET_DIRECTORY[ticker];
+        const rawSlice = CACHED_SERIES[ticker].slice(rangeStart, rangeEnd + 1);
+        const baseVal = rawSlice[0] || 1;
+
+        const dataPoints = rawSlice.map(p => scaleMode === 'pct' ? Number((((p - baseVal) / baseVal) * 100).toFixed(2)) : p);
+
+        datasets.push({
+          label: ticker,
+          data: dataPoints,
+          borderColor: meta.color,
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          tension: 0.1
+        });
+
+        // 12M Forward Projection Cones
+        if (showProjections && meta.analyst) {
+          const currentP = rawSlice[rawSlice.length - 1];
+          const targetP = meta.analyst.targetAvg;
+          const targetY = scaleMode === 'pct' ? Number((((targetP - baseVal) / baseVal) * 100).toFixed(2)) : targetP;
+          const currentY = dataPoints[dataPoints.length - 1];
+
+          const forecastData = new Array(labels.length).fill(null);
+          forecastData[forecastData.length - 1] = currentY;
+
+          datasets.push({
+            label: `${ticker} (12M Target)`,
+            data: [...forecastData, targetY],
+            borderColor: meta.color,
+            borderWidth: 1.8,
+            borderDash: [5, 4],
+            pointRadius: (ctx) => ctx.dataIndex === ctx.dataset.data.length - 1 ? 4 : 0,
+            tension: 0
+          });
+        }
+      });
+
+      const extendedLabels = [...labels];
+      if (showProjections) extendedLabels.push('Late 2027 (12M Target)');
+
+      mainChart.data.labels = extendedLabels;
+      mainChart.data.datasets = datasets;
+      mainChart.update();
+
+      // Update Labels
+      document.getElementById('lblStartDate').innerText = DATES[rangeStart];
+      document.getElementById('lblEndDate').innerText = DATES[rangeEnd];
+      document.getElementById('lblSessionCount').innerText = `${rangeEnd - rangeStart + 1} Sessions`;
+    }
+
+    /* ============================================================
+       4. SLIDER & TIMELINE CONTROLS
+       ============================================================ */
+    const sMin = document.getElementById('sliderMin');
+    const sMax = document.getElementById('sliderMax');
+    const trackActive = document.getElementById('sliderTrackActive');
+
+    function syncSlider() {
+      let v1 = parseInt(sMin.value);
+      let v2 = parseInt(sMax.value);
+      if (v1 > v2 - 3) {
+        v1 = v2 - 3;
+        sMin.value = v1;
+      }
+      trackActive.style.left = `${v1}%`;
+      trackActive.style.width = `${v2 - v1}%`;
+
+      rangeStart = Math.floor((v1 / 100) * (TOTAL_SESSIONS - 1));
+      rangeEnd = Math.floor((v2 / 100) * (TOTAL_SESSIONS - 1));
+      updateChart();
+    }
+
+    sMin.addEventListener('input', syncSlider);
+    sMax.addEventListener('input', syncSlider);
+
+    function setPresetHorizon(horizon) {
+      document.querySelectorAll('.quick-presets .preset-pill').forEach(b => b.classList.remove('active'));
+      const endIdx = TOTAL_SESSIONS - 1;
+      let startIdx = 0;
+
+      if (horizon === '1M') startIdx = endIdx - 22;
+      else if (horizon === '6M') startIdx = endIdx - 126;
+      else if (horizon === '1Y') startIdx = endIdx - 252;
+      else if (horizon === '3Y') startIdx = endIdx - 756;
+      else if (horizon === 'ALL') startIdx = 0;
+
+      startIdx = Math.max(0, startIdx);
+      sMin.value = Math.floor((startIdx / endIdx) * 100);
+      sMax.value = 100;
+      syncSlider();
+    }
+
+    function setScaleMode(mode) {
+      scaleMode = mode;
+      document.getElementById('btnModePct').classList.toggle('active', mode === 'pct');
+      document.getElementById('btnModePrice').classList.toggle('active', mode === 'price');
+      updateChart();
+    }
+
+    function toggleProjections() {
+      showProjections = !showProjections;
+      const btn = document.getElementById('btnProjections');
+      btn.innerText = `Forecasts: ${showProjections ? 'ON' : 'OFF'}`;
+      btn.classList.toggle('active', showProjections);
+      updateChart();
+    }
+
+    /* ============================================================
+       5. CHIPS, CARDS & SEARCH
+       ============================================================ */
+    function renderChips() {
+      const container = document.getElementById('activeChips');
+      container.innerHTML = selectedTickers.map(t => {
+        const a = ASSET_DIRECTORY[t];
+        return `
+          <div class="chip">
+            <span class="chip-dot" style="background:${a.color}"></span>
+            <span>${t}</span>
+            <span class="chip-remove" onclick="removeTicker('${t}')">✕</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderCards() {
+      const container = document.getElementById('cardsGrid');
+      container.innerHTML = selectedTickers.map(t => {
+        const a = ASSET_DIRECTORY[t];
+        const latestPrice = CACHED_SERIES[t][rangeEnd];
+        const target = a.analyst.targetAvg;
+        const upside = (((target - latestPrice) / latestPrice) * 100).toFixed(1);
+        const curSym = a.cur === 'AUD' ? 'A$' : '$';
+        const isUp = upside >= 0;
+
+        return `
+          <div class="stat-card">
+            <div class="stat-card-top">
+              <span class="stat-symbol" style="color:${a.color}">${t}</span>
+              <span class="stat-price">${curSym}${latestPrice.toLocaleString()}</span>
+            </div>
+            <span class="stat-consensus ${a.analyst.consensus.includes('Buy') || a.analyst.consensus.includes('Bull') ? 'consensus-buy' : 'consensus-hold'}">
+              ${a.analyst.consensus} • Smart Score ${a.analyst.smartScore}/10
+            </span>
+            <div class="target-row">
+              <span>12M Wall St Target:</span>
+              <span class="target-val">${curSym}${target.toLocaleString()}</span>
+            </div>
+            <div class="target-row">
+              <span>Implied Upside:</span>
+              <span class="upside-val ${isUp ? 'up' : 'down'}">${isUp ? '+' : ''}${upside}%</span>
+            </div>
+            <div class="target-row" style="font-size: 11px; margin-top: 6px;">
+              <span>Corridor Spread:</span>
+              <span>${curSym}${a.analyst.targetLow} — ${curSym}${a.analyst.targetHigh}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function removeTicker(ticker) {
+      if (selectedTickers.length <= 1) return;
+      selectedTickers = selectedTickers.filter(t => t !== ticker);
+      renderChips();
+      renderCards();
+      updateChart();
+    }
+
+    function addTicker(ticker) {
+      if (!selectedTickers.includes(ticker)) {
+        selectedTickers.push(ticker);
+        renderChips();
+        renderCards();
+        updateChart();
+      }
+      document.getElementById('searchDropdown').classList.remove('show');
+    }
+
+    function loadBasket(arr) {
+      selectedTickers = [...arr];
+      renderChips();
+      renderCards();
+      updateChart();
+    }
+
+    // Search Dropdown Handling
+    let activeFilter = 'ALL';
+    const sInput = document.getElementById('searchInput');
+    const sDropdown = document.getElementById('searchDropdown');
+    const dList = document.getElementById('dropdownList');
+
+    function populateDropdown(query = '') {
+      const q = query.trim().toUpperCase();
+      const items = Object.entries(ASSET_DIRECTORY).filter(([ticker, d]) => {
+        const matchesFilter = activeFilter === 'ALL' ||
+          (activeFilter === 'STOCK' && d.type === 'STOCK') ||
+          (activeFilter === 'ETF' && d.type === 'ETF') ||
+          (activeFilter === 'CRYPTO' && d.type === 'CRYPTO') ||
+          (activeFilter === 'ASX' && d.market === 'ASX');
+        const matchesText = ticker.includes(q) || d.name.toUpperCase().includes(q);
+        return matchesFilter && matchesText;
+      });
+
+      dList.innerHTML = items.map(([t, d]) => `
+        <div class="dropdown-item" onclick="addTicker('${t}')">
+          <div class="item-left">
+            <span class="item-symbol">${t}</span>
+            <span class="badge ${d.type === 'CRYPTO' ? 'badge-crypto' : d.type === 'ETF' ? 'badge-etf' : 'badge-stock'}">${d.type}</span>
+            <span class="badge ${d.market === 'ASX' ? 'badge-asx' : 'badge-usd'}">${d.market}</span>
+            <span class="item-name">${d.name}</span>
+          </div>
+          <span class="item-price">${d.cur === 'AUD' ? 'A$' : '$'}${CACHED_SERIES[t][rangeEnd].toLocaleString()}</span>
+        </div>
+      `).join('');
+    }
+
+    sInput.addEventListener('focus', () => { sDropdown.classList.add('show'); populateDropdown(sInput.value); });
+    sInput.addEventListener('input', () => populateDropdown(sInput.value));
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.search-wrapper')) sDropdown.classList.remove('show');
+    });
+
+    function filterSearchTab(tab, btn) {
+      activeFilter = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      populateDropdown(sInput.value);
+    }
+
+    /* ============================================================
+       6. GEMINI LIVE ASSISTANT & CHAT ENGINE
+       ============================================================ */
+    function toggleDrawer(open) {
+      document.getElementById('geminiDrawer').classList.toggle('minimized', !open);
+    }
+
+    function appendMessage(sender, text) {
+      const body = document.getElementById('chatBody');
+      const div = document.createElement('div');
+      div.className = `chat-bubble ${sender}`;
+      div.innerHTML = text;
+      body.appendChild(div);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    async function handleSendChat() {
+      const input = document.getElementById('chatInput');
+      const q = input.value.trim();
+      if (!q) return;
+
+      appendMessage('user', q);
+      input.value = '';
+
+      const apiKey = localStorage.getItem('tally_gemini_key');
+
+      // Call Real Gemini API if Key Exists
+      if (apiKey) {
+        appendMessage('bot', '<em>Analyzing with Gemini...</em>');
+        const lastMsg = document.querySelector('#chatBody .chat-bubble.bot:last-child');
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: `You are an institutional financial assistant embedded in the Tally stock terminal.
+Available tickers: ${Object.keys(ASSET_DIRECTORY).join(', ')}.
+User query: "${q}"
+Return valid JSON with:
+{
+  "explanation": "concise answer",
+  "action": {
+    "setTickers": ["NVDA", "DFND"], // optional
+    "setHorizon": "1Y", // 1M, 6M, 1Y, 3Y, ALL
+    "setMode": "pct" // pct or price
+  }
+}`
+                }]
+              }]
+            })
+          });
+          const data = await res.json();
+          const rawText = data.candidates[0].content.parts[0].text;
+          const cleaned = rawText.replace(/```json|```/g, '').trim();
+          const parsed = JSON.parse(cleaned);
+
+          lastMsg.innerHTML = parsed.explanation;
+
+          if (parsed.action) {
+            if (parsed.action.setTickers) loadBasket(parsed.action.setTickers);
+            if (parsed.action.setHorizon) setPresetHorizon(parsed.action.setHorizon);
+            if (parsed.action.setMode) setScaleMode(parsed.action.setMode);
+          }
+        } catch (e) {
+          lastMsg.innerHTML = "Connected, but encountered an API response error. Check key permissions.";
+        }
+      } else {
+        // Fallback Keyword Matcher
+        setTimeout(() => {
+          const upper = q.toUpperCase();
+          if (upper.includes('1Y') || upper.includes('1 YEAR')) setPresetHorizon('1Y');
+          if (upper.includes('ALL') || upper.includes('2019')) setPresetHorizon('ALL');
+          if (upper.includes('PREDICT') || upper.includes('FORECAST')) toggleProjections();
+
+          const foundTickers = Object.keys(ASSET_DIRECTORY).filter(t => upper.includes(t));
+          if (foundTickers.length > 0) {
+            loadBasket(foundTickers);
+            appendMessage('bot', `I've updated the chart to compare <strong>${foundTickers.join(', ')}</strong>.`);
+          } else {
+            appendMessage('bot', "Try asking: <em>'Compare NVDA and DFND'</em> or add your Gemini API Key in the top header for open-ended conversational intelligence!");
+          }
+        }, 300);
+      }
+    }
+
+    document.getElementById('chatInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleSendChat();
+    });
+
+    // Key Modal Handlers
+    function openKeyModal() {
+      document.getElementById('inputApiKey').value = localStorage.getItem('tally_gemini_key') || '';
+      document.getElementById('keyModal').style.display = 'flex';
+    }
+    function closeKeyModal() { document.getElementById('keyModal').style.display = 'none'; }
+    function saveApiKey() {
+      const k = document.getElementById('inputApiKey').value.trim();
+      localStorage.setItem('tally_gemini_key', k);
+      closeKeyModal();
+      alert(k ? 'Gemini API Key saved!' : 'Key cleared.');
+    }
+
+    /* Initialize App */
+    renderChips();
+    renderCards();
+    syncSlider();
+  </script>
+</body>
+</html>
